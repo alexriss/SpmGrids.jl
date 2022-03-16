@@ -168,27 +168,16 @@ end
 
 
 """
-    get_channel(grid::SpmGrid, name::AbstractString, point_x::Int, point_y::Int)::Vector{Float32}
+    get_channel(grid::SpmGrid, name::AbstractString, index_x::Any, index_y::Any, index_channel::Any=nothing)::Array{Float32}
 
 Returns the data for the channel `name` at the point(s) specified by `index_x`, `index_y`
 The channel data can be indexed by `index_channel`.
 """
-function get_channel(grid::SpmGrid, name::AbstractString, index_x::Any, index_y::Any, index_channel::Any=nothing)::Array{Float32}
+function get_channel(grid::SpmGrid, name::AbstractString, index_x::Any, index_y::Any, index_channel::Any=nothing)::Union{Float32, Array{Float32}}
     idx = get_channel_index(grid, name)
     if index_channel !== nothing
         idx = idx[index_channel]
     end
-    return grid.data[idx, index_x, index_y]
-end
-
-
-"""
-    get_channel(grid::SpmGrid, name::AbstractString, point_x::Int, point_y::Int)::Vector{Float32}
-
-Returns the data for the channel `name` at the point(s) specified by `index_x`, `index_y`.
-"""
-function get_channel(grid::SpmGrid, name::AbstractString, index_x::Any, index_y::Any)::Array{Float32}
-    idx = get_channel_index(grid, name)
     return grid.data[idx, index_x, index_y]
 end
 
