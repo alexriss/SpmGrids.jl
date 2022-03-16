@@ -1,0 +1,15 @@
+name = "SpmGrids"
+uuid = "d9e2b492-b06c-4d87-a3ea-3420020b54f8"
+authors = ["Alex Riss"]
+version = "0.1.0"
+
+
+[compat]
+julia = "^1.7"
+
+
+[extras]
+Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
+
+[targets]
+test = ["Test"]
