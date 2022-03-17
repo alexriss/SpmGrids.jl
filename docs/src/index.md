@@ -1,10 +1,10 @@
 ```@meta
-CurrentModule = Spmgrids
+CurrentModule = SpmGrids
 ```
 
 # SpmGrids
 
-Documentation for [SpmGrids](https://github.com/alexriss/Spmgrids.jl).
+Documentation for [SpmGrids](https://github.com/alexriss/SpmGrids.jl).
 
 ## About
 

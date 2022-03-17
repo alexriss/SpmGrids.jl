@@ -10,7 +10,7 @@ makedocs(;
     sitename="SpmGrids.jl",
     format=Documenter.HTML(;
         prettyurls=get(ENV, "CI", "false") == "true",
-        canonical="https://alexriss.github.io/SpmSpectrpscopy.jl",
+        canonical="https://alexriss.github.io/SpmGrids.jl",
         assets=String[],
     ),
     pages=[
