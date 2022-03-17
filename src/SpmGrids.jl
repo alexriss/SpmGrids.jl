@@ -6,6 +6,7 @@ using Dates
 using TOML
 
 export load_grid, get_channel, get_parameter
+export plot_channel
 
 const VERSION = VersionNumber(TOML.parsefile(joinpath(@__DIR__, "../Project.toml"))["version"])
 
@@ -46,6 +47,9 @@ SpmGrid(filename::String) = SpmGrid(
         missing, missing,
         DateTime(-1), DateTime(-1)
     )
+
+
+include("plot_functions.jl")
 
 
 """

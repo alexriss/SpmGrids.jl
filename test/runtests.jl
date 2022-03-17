@@ -1,3 +1,4 @@
+using CairoMakie  # should also work with WGLMakie and GLMakie
 using Dates
 using SpmGrids
 using Test
@@ -34,7 +35,7 @@ using Test
     @test grid.header["Comment"] == "KPFM"
     @test grid.header["Experiment"] == "Grid Spectroscopy"
 
-    grid = load_grid("Grid Spectroscopy002.3ds")
+    global grid = load_grid("Grid Spectroscopy002.3ds")
 
     @test length(grid.data) == 20 * 20 * (18 + 10 * 128)  # pixels * (parameters + channels * points)
     @test size(get_channel(grid, "Bias", 4:20, 5:5)) == (128,17,1)
@@ -45,3 +46,43 @@ using Test
     @test get_channel(grid, "Current", 20, 7, 20:24) ≈ Float32[1.3028699f-10, 1.2868269f-10, 1.2712124f-10, 1.2609777f-10, 1.2497206f-10]
 end
 
+
+@testset "plotting" begin
+    x_name = grid.sweep_signal
+    y_name = "Frequency Shift"
+    y = get_channel(grid, y_name, 6, 6)
+    x = get_channel(grid, x_name, 5, 6)
+
+    y_factor, y_prefix = SpmGrids.get_factor_prefix(y)
+    x_factor, x_prefix = SpmGrids.get_factor_prefix(x)
+    x_label = SpmGrids.axis_label(grid, x_name, x_prefix)
+    y_label = SpmGrids.axis_label(grid, y_name, y_prefix)
+
+    @test x_label == "Bias / mV"
+    @test y_label == "Frequency Shift / Hz"
+    @test x_factor ≈ 1.0f-3
+    @test y_factor ≈ 1.0f0
+
+    fig = CairoMakie.Figure(resolution = (800, 400))
+    ax = CairoMakie.Axis(fig[1, 1])
+    plot_channel(grid, "Z", "Frequency Shift", 5, 1:10)
+    plot_channel(grid, "Z", "Frequency Shift", 5:6, 1)
+    plot_channel(grid, "Z", "Frequency Shift", 5:6, 1:10)
+
+    @test ax.ylabel[] == "Frequency Shift / Hz"
+    @test ax.xlabel[] == "Z / nm"
+
+    fig = CairoMakie.Figure(resolution = (800, 400))
+    ax = CairoMakie.Axis(fig[1, 1])
+    plot_channel(grid, "Bias", "Current", 12, 12, ax=ax)
+    @test ax.xlabel[] == "Bias / mV"
+    @test ax.ylabel[] == "Current / pA"
+
+    println(ax.finallimits[].widths)
+    
+    @test abs(ax.finallimits[].origin[1] / -115.00001f0 - 1.0) < 0.2
+    @test abs(ax.finallimits[].origin[2] / -115.49187f0 - 1.0) < 0.2
+
+    @test abs(ax.finallimits[].widths[1] / 330.0001f0 - 1.0) < 0.2
+    @test abs(ax.finallimits[].widths[2] / 263.00067f0 - 1.0) < 0.2
+end
