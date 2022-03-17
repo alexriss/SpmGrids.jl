@@ -1,4 +1,3 @@
-using CairoMakie  # should also work with WGLMakie and GLMakie
 using Dates
 using SpmGrids
 using Test
@@ -10,6 +9,7 @@ using Test
     @test grid.angle ≈ 0.
     @test grid.center ≈ [1.106620E-7, 2.331660E-7]
     @test grid.size ≈ [1.5e-8, 1.5e-8]
+    @test grid.size_unit == "m"
 
     @test grid.points == 128
 
@@ -40,7 +40,7 @@ using Test
     @test length(grid.data) == 20 * 20 * (18 + 10 * 128)  # pixels * (parameters + channels * points)
     @test size(get_channel(grid, "Bias", 4:20, 5:5)) == (128,17,1)
     @test size(get_channel(grid, "Frequency Shift", 4:20, 5:7, 20:23)) == (4,17,3)
-    @test get_channel(grid, "Bias", 20, 7, 20) ≈ 0.15511811f0
+    @test get_channel(grid, "Bias", 20, 7, 20)[] ≈ 0.15511811f0
     @test all(get_parameter(grid, "Z offset", 3, :) .≈ 0.0)
     @test get_parameter(grid, "Z", 3, 5) ≈ -1.1132063f-8
     @test get_channel(grid, "Current", 20, 7, 20:24) ≈ Float32[1.3028699f-10, 1.2868269f-10, 1.2712124f-10, 1.2609777f-10, 1.2497206f-10]
@@ -63,23 +63,23 @@ end
     @test x_factor ≈ 1.0f-3
     @test y_factor ≈ 1.0f0
 
+    using CairoMakie  # should also work with WGLMakie and GLMakie
     fig = CairoMakie.Figure(resolution = (800, 400))
     ax = CairoMakie.Axis(fig[1, 1])
-    plot_channel(grid, "Z", "Frequency Shift", 5, 1:10)
-    plot_channel(grid, "Z", "Frequency Shift", 5:6, 1)
-    plot_channel(grid, "Z", "Frequency Shift", 5:6, 1:10)
+    plot_spectrum(grid, "Z", "Frequency Shift", 5, 1:10, backend=CairoMakie)
+    plot_spectrum(grid, "Z", "Frequency Shift", 5:6, 1)
+    plot_spectrum(grid, "Z", "Frequency Shift", :, 5:6, 100:120)
+    plot_spectrum(grid, "Z", "Frequency Shift", 5:6, 1:10)
 
     @test ax.ylabel[] == "Frequency Shift / Hz"
     @test ax.xlabel[] == "Z / nm"
 
     fig = CairoMakie.Figure(resolution = (800, 400))
     ax = CairoMakie.Axis(fig[1, 1])
-    plot_channel(grid, "Bias", "Current", 12, 12, ax=ax)
+    plot_spectrum(grid, "Bias", "Current", 12, 12, ax=ax)
     @test ax.xlabel[] == "Bias / mV"
     @test ax.ylabel[] == "Current / pA"
 
-    println(ax.finallimits[].widths)
-    
     @test abs(ax.finallimits[].origin[1] / -115.00001f0 - 1.0) < 0.2
     @test abs(ax.finallimits[].origin[2] / -115.49187f0 - 1.0) < 0.2
 

@@ -6,9 +6,12 @@ using Dates
 using TOML
 
 export load_grid, get_channel, get_parameter
-export plot_channel
+export plot_spectrum, plot_line
 
 const VERSION = VersionNumber(TOML.parsefile(joinpath(@__DIR__, "../Project.toml"))["version"])
+
+# valid range types for slicing the grid
+const GridRange = Union{Int,UnitRange{Int},Colon}
 
 mutable struct SpmGrid
     filename::String
@@ -88,7 +91,7 @@ function load_grid(filename::AbstractString; header_only::Bool=false)::SpmGrid
             grid_settings = parse.(Float64, split(grid.header["Grid settings"], ";"))
             grid.center = [grid_settings[1], grid_settings[2]]
             grid.size = [grid_settings[3], grid_settings[4]]
-            grid.size_unit = "nm"
+            grid.size_unit = "m"
             grid.angle = grid_settings[5]
         else
             @warn "Grid settings are not specified in the file."
@@ -172,17 +175,20 @@ end
 
 
 """
-    get_channel(grid::SpmGrid, name::AbstractString, index_x::Any, index_y::Any, index_channel::Any=nothing)::Array{Float32}
+    get_channel(grid::SpmGrid, name::AbstractString,
+        index_x::GridRange, index_y::GridRange, index_channel::GridRange=:)::Array{Float32}
 
 Returns the data for the channel `name` at the point(s) specified by `index_x`, `index_y`
 The channel data can be indexed by `index_channel`.
 """
-function get_channel(grid::SpmGrid, name::AbstractString, index_x::Any, index_y::Any, index_channel::Any=nothing)::Union{Float32, Array{Float32}}
+function get_channel(grid::SpmGrid, name::AbstractString,
+    index_x::GridRange, index_y::GridRange, index_channel::GridRange=:)::SubArray{Float32}
+
     idx = get_channel_index(grid, name)
-    if index_channel !== nothing
+    if index_channel !== Colon()
         idx = idx[index_channel]
     end
-    return grid.data[idx, index_x, index_y]
+    return @view grid.data[idx, index_x, index_y]
 end
 
 
@@ -203,11 +209,14 @@ end
 
 
 """
-    get_parameter(grid::SpmGrid, name::AbstractString, index_x::Any, index_y::Any)::Union{Float32, Array{Float32}}
+    get_parameter(grid::SpmGrid, name::AbstractString,
+        index_x::GridRange, index_y::GridRange)::Union{Float32, Array{Float32}}
 
 Returns the value for parameter `name` at the point(s)specified by `index_x`, `index_y`.
 """
-function get_parameter(grid::SpmGrid, name::AbstractString, index_x::Any, index_y::Any)::Union{Float32, Array{Float32}}
+function get_parameter(grid::SpmGrid, name::AbstractString,
+    index_x::GridRange, index_y::GridRange)::Union{Float32, Array{Float32}}
+    
     idx = get_parameter_index(grid, name)
     return grid.data[idx, index_x, index_y]
 end
