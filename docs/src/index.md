@@ -12,19 +12,66 @@ A julia library to analyze scanning tuprobe microscopy grid data. Currently, onl
 
 ## Usage
 
-```julia
+### Loading data and parameters
+
+```@repl
 using SpmGrids
+grid = load_grid("Bias_spectroscopy.3ds");
 
-grid = load_grid("Bias_spectrocopy.3ds")
+grid.experiment_parameters  # available parameter names
+grid.channel_names  # available channel names
+grid.size, grid.size_unit, grid.center, grid.angle, grid.pixelsize  # grid parameters
+grid.start_time, grid.end_time  # more parameters
+grid.header  # even more parameters
 
-c = get_channel(grid, "Current", 5, 5)  # get the current channel at point 5,5
-c = get_channel(grid, "Current", :, 5)  # get the current channel for fifth row
-c = get_channel(grid, "Current", :, 5, 20)  # get the 20th point of the current channel for fifth row
-c = get_channel(grid, "Current", :, 5:6, 1:50)  # get the first 50 points of the current channel for fifth and sixth rows, returns a 50x20x2 Array
+x = get_channel(grid, "Current", 5, 5);  # `Current` channel at point 5,5
+x = get_channel(grid, "Current", :, 5);  # `Current` channel for 5th row
+#  20th point of `Current` channel for 5th row
+x = get_channel(grid, "Current", :, 5, 20);
+x = get_channel(grid, grid.sweep_signal, 5, 6);  # sweep signal at point 5,6
+p = get_parameter(grid, "Z offset", 3, 5);  # `Z offset` parameter at point 3,5
 
-x = get_channel(grid, grid.sweep_signal, 5, 6)  # get the sweep signal at point 5,6
-
-p = get_parameter(grid, "Z offset", 3, 5)  # get the `Z offset` parameter at point 3,5
+# get the first 50 points of the `Current` channel for 5th and 6th rows
+x = get_channel(grid, "Current", :, 5:6, 1:50);
+size(x) # returns a 50x20x2 Array
 ```
+
+### Plotting spectra
+
+```@example
+using SpmGrids
+using CairoMakie  # use any Makie backend you like
+
+grid = load_grid("Bias_spectroscopy.3ds")
+
+fig = Figure(resolution = (800, 400))
+ax = Axis(fig[1, 1])
+
+# line plot of `Current` vs `Bias` for all specified x and y indices
+plot_spectrum(grid, "Bias", "Current", 10:12, 12, backend=CairoMakie)
+
+fig
+```
+
+```@example
+using SpmGrids
+using GLMakie  # use any Makie backend you like
+
+grid = load_grid("Bias_spectroscopy.3ds")
+
+fig = Figure(resolution = (800, 400))
+ax = Axis(fig[1, 1])
+
+# x, y, as well as channel values can be indexed
+plot_spectrum(grid, "Bias", "Frequency Shift", 8, 2:6, 20:120, backend=GLMakie)
+
+# add legend
+fig[1, 2] = Legend(fig, ax, "Legend", framevisible=false)
+
+fig
+```
+
+
+## More information
 
 A more detailed description can be found in the [Reference](@ref)
