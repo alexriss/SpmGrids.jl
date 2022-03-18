@@ -148,7 +148,15 @@ function read_binary_data!(grid::SpmGrid, f::IOStream, num_parameters::Int)::Not
 
     data = Array{Float32}(undef, num_parameters + grid.points * length(grid.channel_names), grid.pixelsize...)
 
-    read!(f, data)
+    # some files end prematuyrely, so we create a buffer and fill the buffer with NaN32
+    io = IOBuffer(UInt8[], read=true, write=true)
+    write(io, (read(f, String)))
+    diff = reduce(*, size(data)) * 4 - io.size
+    nan_arr = fill(hton(NaN32), diff ÷ 4)
+    write(io, nan_arr)
+
+    seekstart(io)
+    read!(io, data)
     grid.data = ntoh.(data)  # big-endian to host endian
 
     return nothing

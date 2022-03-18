@@ -2,7 +2,7 @@ using Dates
 using SpmGrids
 using Test
 
-@testset "loading" begin
+@testset "load data" begin
     grid = load_grid("Grid Spectroscopy002.3ds", header_only=true)
 
     @test grid.pixelsize == [20,20]
@@ -35,7 +35,7 @@ using Test
     @test grid.header["Comment"] == "KPFM"
     @test grid.header["Experiment"] == "Grid Spectroscopy"
 
-    global grid = load_grid("Grid Spectroscopy002.3ds")
+    grid = load_grid("Grid Spectroscopy002.3ds")
 
     @test length(grid.data) == 20 * 20 * (18 + 10 * 128)  # pixels * (parameters + channels * points)
     @test size(get_channel(grid, "Bias", 4:20, 5:5)) == (128,17,1)
@@ -47,8 +47,8 @@ using Test
 end
 
 
-@testset "plotting" begin
-    # grid = load_grid("Grid Spectroscopy006.3ds") # contains bwd and fwd, also is stopped after a few lines
+@testset "plot spectrum" begin
+    grid = load_grid("Grid Spectroscopy002.3ds")
 
     x_name = grid.sweep_signal
     y_name = "Frequency Shift"
@@ -87,4 +87,69 @@ end
 
     @test abs(ax.finallimits[].widths[1] / 330.0001f0 - 1.0) < 0.2
     @test abs(ax.finallimits[].widths[2] / 263.00067f0 - 1.0) < 0.2
+
+    grid = load_grid("Grid Spectroscopy006.3ds") # contains bwd and fwd, also is stopped after a few lines
+
+    fig = CairoMakie.Figure(resolution = (800, 400));
+    ax = CairoMakie.Axis(fig[1, 1])
+    plot_spectrum(grid, "", "Frequency Shift", :, 5, color_bwd="#e0e0e0")  # only NaNs in 5th row
+    @test ax.xlabel[] == "Z / m"
+    @test ax.ylabel[] == "Frequency Shift / Hz"
+
+    fig = CairoMakie.Figure(resolution = (800, 400));
+    ax = CairoMakie.Axis(fig[1, 1])
+    plot_spectrum(grid, "", "Current", :, 2, color_bwd="#e0e0e0")  # only NaNs in 5th row
+    @test ax.xlabel[] == "Z / nm"
+    @test ax.ylabel[] == "Current / pA"
+end
+
+
+@testset "plot line" begin
+    grid = load_grid("Grid Spectroscopy006.3ds") # contains bwd and fwd, also is stopped after a few lines
+
+    fig = CairoMakie.Figure(resolution = (800, 400));
+    ax = CairoMakie.Axis(fig[1, 1])
+    plot_line(grid, "Frequency Shift", :, 5, 10, color_bwd="#e0e0e0")  # only NaNs in 5th row
+    @test ax.xlabel[] == "grid x / nm"
+    @test ax.ylabel[] == "Frequency Shift / Hz"
+
+    fig = CairoMakie.Figure(resolution = (800, 400));
+    ax = CairoMakie.Axis(fig[1, 1])
+    plot_line(grid, "Frequency Shift", 5:10, 1, 10, color_bwd="#e0e0e0")  
+    @test ax.xlabel[] == "grid x / pm"
+    @test ax.ylabel[] == "Frequency Shift / Hz"
+    @test abs(ax.finallimits[].origin[1] / 362.90323f0 - 1.0) < 0.2
+    @test abs(ax.finallimits[].origin[2] / -2.4572f0 - 1.0) < 0.2
+    @test abs(ax.finallimits[].widths[1] / 532.25806f0 - 1.0) < 0.2
+    @test abs(ax.finallimits[].widths[2] / 0.2953453f0 - 1.0) < 0.2
+
+    fig = CairoMakie.Figure(resolution = (800, 400));
+    ax = CairoMakie.Axis(fig[1, 1])
+    plot_line(grid, "Current", 5, :, 10, color_bwd="#e0e0e0")  
+    @test ax.xlabel[] == "grid y / nm"
+    @test ax.ylabel[] == "Current / fA"
+    @test abs(ax.finallimits[].origin[1] / -0.00967742f0 - 1.0) < 0.2
+    @test abs(ax.finallimits[].origin[2] / -34.985077f0 - 1.0) < 0.2
+    @test abs(ax.finallimits[].widths[1] / 0.21290325f0 - 1.0) < 0.2
+    @test abs(ax.finallimits[].widths[2] / 22.791697f0 - 1.0) < 0.2
+
+    fig = CairoMakie.Figure(resolution = (800, 400));
+    ax = CairoMakie.Axis(fig[1, 1])
+    plot_line(grid, "Frequency Shift", 5, 2, 1:120, color_bwd="#e0e0e0")  
+    @test ax.xlabel[] == "Z / nm"
+    @test ax.ylabel[] == "Frequency Shift / Hz"
+    @test abs(ax.finallimits[].origin[1] / -4.942342 - 1.0) < 0.2
+    @test abs(ax.finallimits[].origin[2] / -7.784694 - 1.0) < 0.2
+    @test abs(ax.finallimits[].widths[1] / 0.5133338f0 - 1.0) < 0.2
+    @test abs(ax.finallimits[].widths[2] / 6.1346087f0 - 1.0) < 0.2
+
+    fig = CairoMakie.Figure(resolution = (800, 400));
+    ax = CairoMakie.Axis(fig[1, 1])
+    plot_line(grid, "Frequency Shift", 5, 2, 1:120, color_bwd="#e0e0e0", x_channel="Z")
+    @test ax.xlabel[] == "Z / nm"
+    @test ax.ylabel[] == "Frequency Shift / Hz"
+    @test abs(ax.finallimits[].origin[1] / -4.942342 - 1.0) < 0.2
+    @test abs(ax.finallimits[].origin[2] / -7.784694 - 1.0) < 0.2
+    @test abs(ax.finallimits[].widths[1] / 0.5133338f0 - 1.0) < 0.2
+    @test abs(ax.finallimits[].widths[2] / 6.1346087f0 - 1.0) < 0.2
 end

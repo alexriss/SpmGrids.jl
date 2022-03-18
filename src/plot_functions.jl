@@ -96,7 +96,11 @@ Determines the best SI unit prefix for a given array `numbers`.
 Returns a tuple of the factor and the prefix.
 """
 function get_factor_prefix(numbers::AbstractArray{<:Float32})::Tuple{Float32, String}
-    return get_factor_prefix(maximum(abs.(skipnan(numbers))))
+    abs_numbers = abs.(skipnan(numbers))
+    if length(abs_numbers) === 0
+        return 1f0, ""
+    end
+    return get_factor_prefix(maximum(abs_numbers))
 end
 
 
@@ -152,6 +156,7 @@ end
         kwargs...)::Nothing)
 
 Plots a scatter plot of `channel_y` vs `channel_x` on the given `index_x` and `y_index`.
+If `channel_x` is `""`, then the sweep signal will be used for `channel_x`.
 Additionally, the spectrum data can be indexed by `index_channel`.
 If `include_backward` is `true`` (default), the plot will include data from backward sweep as well (if they exist).
 
@@ -173,6 +178,10 @@ function plot_spectrum(grid::SpmGrid, channel_x::String, channel_y::String,
 
     if ax === nothing
         ax = backend.current_axis()
+    end
+
+    if channel_x === ""
+        channel_x = grid.sweep_signal
     end
 
     index_x = convert_to_range(index_x)
@@ -226,14 +235,14 @@ function plot_spectrum(grid::SpmGrid, channel_x::String, channel_y::String,
             y_plot_bwd = @view y_bwd[:, i_x, i_y]
         end
 
+        backend.scatterlines!(x_plot ./ x_factor, y_plot ./ y_factor,
+            linewidth=2, markersize=2, color=colors_fwd[i], label="$(idx_x), $(idx_y)";
+            kwargs_fwd...)
         if backward && length(x_bwd) > 0
             backend.scatterlines!(x_plot_bwd ./ x_factor, y_plot_bwd ./ y_factor,
                 linewidth=2, markersize=2, color=colors_bwd[i], label="$(idx_x), $(idx_y) bwd";
                 kwargs_bwd...)
         end
-        backend.scatterlines!(x_plot ./ x_factor, y_plot ./ y_factor,
-            linewidth=2, markersize=2, color=colors_fwd[i], label="$(idx_x), $(idx_y)";
-            kwargs_fwd...)
 
         i+=1
     end
@@ -261,7 +270,8 @@ A particular Axis can be specified via the `ax` keyword argument.
 By default, the Makie backend from the `Main` module is used;
 it can also be directly specified via the `backend` keyword argument.
 
-Extra 
+Extra keyword arguments can be specified and will be passed through to the plot function.
+Keyword arrguments with the suffix `_bwd` will be used for plotting of the backward scan.    
 """
 function plot_line(grid::SpmGrid, channel_y::String,
     index_x::GridRange, index_y::GridRange, index_channel::GridRange=nothing;
@@ -286,7 +296,7 @@ function plot_line(grid::SpmGrid, channel_y::String,
 
     if "$channel_y [bwd]" in grid.channel_names
         y_bwd = get_channel(grid, "$channel_y [bwd]", index_x, index_y, index_channel)
-        @assert size(x_bwd) == size(y)
+        @assert size(y_bwd) == size(y)
     else
         y_bwd = Float32[]
     end
@@ -301,16 +311,22 @@ function plot_line(grid::SpmGrid, channel_y::String,
         x_label = axis_label("grid x", grid.size_unit, x_prefix)
         point1 = format_with_prefix(gridy_span[index_y[]]) * grid.size_unit
         point2 = format_with_prefix(sweep_span[index_channel[]]) * grid.sweep_signal_unit
-        label = "at grid y=$point1 and $(grid.sweep_signal)=$point2"
+        label = "grid y=$point1, $(grid.sweep_signal)=$point2"
         y = @view y[1,:,1]  # all other dimensions are of length 1
+        if length(y_bwd) > 0
+            y_bwd = @view y_bwd[1,:,1]
+        end
     elseif ny != 1
         x = gridy_span[index_y]
         x_factor, x_prefix = get_factor_prefix(collect(x))
         x_label = axis_label("grid y", grid.size_unit, x_prefix)
         point1 = format_with_prefix(gridx_span[index_x[]]) * grid.size_unit
         point2 = format_with_prefix(sweep_span[index_channel[]]) * grid.sweep_signal_unit
-        label = "at grid x=$point1 and $(grid.sweep_signal)=$point2"
+        label = "grid x=$point1, $(grid.sweep_signal)=$point2"
         y = @view y[1,1,:]  # all other dimensions are of length 1
+        if length(y_bwd) > 0
+            y_bwd = @view y_bwd[1,1,:]
+        end
     else
         if channel_x === ""
             channel_x = grid.sweep_signal
@@ -320,8 +336,11 @@ function plot_line(grid::SpmGrid, channel_y::String,
         x_label = axis_label(grid, channel_x, x_prefix)
         point1 = format_with_prefix(gridx_span[index_x[]]) * grid.size_unit
         point2 = format_with_prefix(gridy_span[index_y[]]) * grid.size_unit
-        label= "at grid x=$point1 and grid y=$point2"
+        label= "grid x=$point1, grid y=$point2"
         y = @view y[:,1,1]  # all other dimensions are of length 1
+        if length(y_bwd) > 0
+            y_bwd = @view y_bwd[:,1,1]
+        end
     end
 
     y_factor, y_prefix = get_factor_prefix(y)
@@ -332,14 +351,14 @@ function plot_line(grid::SpmGrid, channel_y::String,
     kwargs_fwd = get_kwargs(kwargs)
     kwargs_bwd = get_kwargs(kwargs, backward=true)
 
+    backend.scatterlines!(x ./ x_factor, y ./ y_factor,
+        linewidth=2, markersize=2, color=color_spectrum_fwd, label=label;
+        kwargs_fwd...)
     if backward && length(y_bwd) > 0
         backend.scatterlines!(x ./ x_factor, y_bwd ./ y_factor,
             linewidth=2, markersize=2, color=color_spectrum_bwd, label="$(label) bwd";
             kwargs_bwd...)
     end
-    backend.scatterlines!(x ./ x_factor, y ./ y_factor,
-        linewidth=2, markersize=2, color=color_spectrum_fwd, label=label;
-        kwargs_fwd...)
 
     return nothing
 end

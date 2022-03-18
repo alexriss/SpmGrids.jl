@@ -40,7 +40,7 @@ size(x) # 50 points of data for 20 columns and 2 rows
 
 ```@example
 using SpmGrids
-using CairoMakie
+using CairoMakie  # use any Makie backend you like
 
 grid = load_grid("Bias_spectroscopy.3ds")
 
@@ -55,7 +55,7 @@ fig
 
 ```@example
 using SpmGrids
-using GLMakie  # use any Makie backend you like
+using GLMakie
 
 grid = load_grid("Bias_spectroscopy.3ds")
 
@@ -71,6 +71,35 @@ fig[1, 2] = Legend(fig, ax, "Legend", framevisible=false)
 fig
 ```
 
+### Plotting lines
+
+```@example
+using SpmGrids
+using CairoMakie
+
+grid = load_grid("Z_spectroscopy.3ds")
+
+fig = Figure(resolution = (800, 800));
+ax = Axis(fig[1, 1])
+# plot the `Frequency Shift` for 120th point in the sweep for the second row
+plot_line(grid, "Frequency Shift", :, 2, 120, backend=CairoMakie)
+fig[1, 2] = Legend(fig, ax, "", framevisible=false, labelsize=10)
+
+ax = Axis(fig[2, 1])
+# plot the `Frequency Shift` at point (2,3) against the sweep signal
+# keywords (e.g. `color`) with be passed to the plot function for forward channel
+plot_line(grid, "Frequency Shift", 2, 3, :, color="#a0a0a0", backend=CairoMakie)
+fig[2, 2] = Legend(fig, ax, "", framevisible=false, labelsize=10)
+
+ax = Axis(fig[3, 1])
+# plot the `Frequency Shift` at point (3,2) against `Current` channel
+# keywords with suffix `_bwd` (e.g. `color_bwd`) will be passed
+# to the plot function for backward channel
+plot_line(grid, "Frequency Shift", 3,2, :, channel_x="Current", color_bwd="#a0a0a0", backend=CairoMakie)
+fig[3, 2] = Legend(fig, ax, "", framevisible=false, labelsize=10)
+
+fig
+```
 
 ## More information
 
