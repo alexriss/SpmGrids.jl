@@ -178,6 +178,8 @@ function plot_spectrum(grid::SpmGrid, sweep_channel::String, response_channel::S
 
     if ax === nothing
         ax = backend.current_axis()
+    else
+        backend.current_axis!(ax)
     end
 
     if sweep_channel === ""
@@ -234,7 +236,7 @@ function plot_spectrum(grid::SpmGrid, sweep_channel::String, response_channel::S
             y_plot_bwd = @view y_bwd[:, i_x, i_y]
         end
 
-        backend.scatterlines!(x_plot ./ x_factor, y_plot ./ y_factor,
+        backend.scatterlines!(ax, x_plot ./ x_factor, y_plot ./ y_factor,
             linewidth=2, markersize=2, color=colors_fwd[i], label="$(idx_x), $(idx_y)";
             kwargs_fwd...)
         if backward && length(x_bwd) > 0
@@ -256,7 +258,7 @@ end
         sweep_channel::String="", backward::Bool=true, ax::Any=nothing, backend::Module=Main,
         kwargs...)::Nothing
 
-Plots the `response_channel` along a line in the three-dimensional data spanned by xy plane and the spectroscopy data.
+Plots the `response_channel` along a line in the three-dimensional data spanned by x,y plane and the spectroscopy data.
 Indexing is done through `x_index`, `y_index` and `channel_index` and should be done such that a
 one-dimensional array is obtained.
 It is also possible to plot `response_channel` vs `sweep_channel`
@@ -281,6 +283,8 @@ function plot_line(grid::SpmGrid, response_channel::String,
 
     if ax === nothing
         ax = backend.current_axis()
+    else
+        backend.current_axis!(ax)
     end
 
     x_index = convert_to_range(x_index)
@@ -377,10 +381,9 @@ end
         backward::Bool=false, ax::Any=nothing, backend::Module=Main,
         kwargs...)::Tuple{Any, String}
 
-Plots a plane of `response_channel` in the three-dimensional data spanned by xy plane and the spectroscopy data.
+Plots a plane of `response_channel` in the three-dimensional data spanned by x,y plane and the spectroscopy data.
 Indexing is done through `x_index`, `y_index` and `channel_index` and should be done such that a
 two-dimensional array is obtained.
-(which defaults ot the sweep signal if not specified) for one point in the grid
 If `backward` is set to `true`, then data from the backward sweep is plotted if it exists.
 
 Before using this function, a [Makie](https://makie.juliaplots.org/) backend (`GLMakie`, `CairoMakie` or `WGLMakie`) should be imported
@@ -402,6 +405,8 @@ function plot_plane(grid::SpmGrid, response_channel::String,
 
     if ax === nothing
         ax = backend.current_axis()
+    else
+        backend.current_axis!(ax)
     end
 
     # for now, the sweep_channel is always the sweep signal
@@ -428,7 +433,7 @@ function plot_plane(grid::SpmGrid, response_channel::String,
     z = get_channel(grid, response_channel, x_index, y_index, channel_index)
 
     if count(isequal(1), size(z)) < 1 || !all(size(z) .> 0)
-        @error "Use indexes to obtain a one-dimensional array (e.g. of size 128,1,5). Currently, the array size is $(size(z))."
+        @error "Use indexes to obtain a two-dimensional array (e.g. of size 128,1,5). Currently, the array size is $(size(z))."
     end
 
     nc, nx, ny = size(z)
@@ -472,7 +477,7 @@ function plot_plane(grid::SpmGrid, response_channel::String,
         y_factor, y_prefix = get_factor_prefix(collect(y))
         y_label = axis_label("grid y", grid.size_unit, y_prefix)
 
-        c = sweep_span[channel_index[]]
+        c = sweep_span[channel_index][]
         point = format_with_prefix(c) * grid.sweep_signal_unit
         label = "$(grid.sweep_signal)=$point"
 
@@ -490,4 +495,103 @@ function plot_plane(grid::SpmGrid, response_channel::String,
         colormap=:grays, label=label; kwargs...)
 
     return hm, z_label, label
+end
+
+
+"""
+    function plot_cube(grid::SpmGrid, response_channel::String,
+        x_index::GridRange, y_index::GridRange, channel_index::GridRange=nothing;
+        backward::Bool=false, ax::Any=nothing, backend::Module=Main,
+        kwargs...)::Tuple{Any,String}
+
+Plots a cube of `response_channel` in the three-dimensional data spanned by the x,y plane and the spectroscopy data.
+Indexing is done through `x_index`, `y_index` and `channel_index` and should be done such that a
+three-dimensional array is obtained.
+If `backward` is set to `true`, then data from the backward sweep is plotted if it exists.
+
+Before using this function, a [Makie](https://makie.juliaplots.org/) backend (`GLMakie`, `CairoMakie` or `WGLMakie`) should be imported
+and the figure or axis should be set up.
+A particular Axis can be specified via the `ax` keyword argument.
+By default, the Makie backend from the `Main` module is used;
+it can also be directly specified via the `backend` keyword argument.
+
+Extra keyword arguments can be specified and will be passed through to the plot function.
+
+Returns a tuple containing the volume-plot, and a colorbar label.
+"""
+function plot_cube(grid::SpmGrid, response_channel::String,
+    x_index::GridRange, y_index::GridRange, channel_index::GridRange=nothing;
+    backward::Bool=false, ax::Any=nothing, backend::Module=Main,
+    kwargs...)::Tuple{Any,String}
+
+    check_makie_loaded(backend)
+
+    if ax === nothing
+        ax = backend.current_axis()
+    else
+        backend.current_axis!(ax)
+    end
+
+    # for now, the sweep_channel is always the sweep signal
+    # it is the only one that has the same values for all points
+    sweep_channel = grid.sweep_signal
+
+    x_index = convert_to_range(x_index)
+    y_index = convert_to_range(y_index)
+    channel_index = convert_to_range(channel_index)
+
+    if backward
+        if "$response_channel [bwd]" in grid.channel_names
+            response_channel = response_channel * " [bwd]"
+        else
+            @warn """No backward sweep data for channel "$response_channel"."""
+        end
+        if "$sweep_channel [bwd]" in grid.channel_names
+            sweep_channel = sweep_channel * " [bwd]"
+        else
+            @warn """No backward sweep data for channel "$sweep_channel"."""
+        end
+    end
+
+    r = get_channel(grid, response_channel, x_index, y_index, channel_index)
+
+    if !all(size(r) .> 0)
+        @error "Use indexes to obtain a three-dimensional array (e.g. of size 128,5,5). Currently, the array size is $(size(r))."
+    end
+
+    nc, nx, ny = size(r)
+    gridx_span = range(0, grid.size[1], length=grid.pixelsize[1])
+    gridy_span = range(0, grid.size[2], length=grid.pixelsize[2])
+    sweep_span = get_channel(grid, grid.sweep_signal, 1, 1, :)
+    x = gridx_span[x_index]
+    y = gridy_span[y_index]
+    z = sweep_span[channel_index]
+
+    x_factor, x_prefix = get_factor_prefix(collect(x))
+    x_label = axis_label("grid x", grid.size_unit, x_prefix)
+    y_factor, y_prefix = get_factor_prefix(collect(y))
+    y_label = axis_label("grid y", grid.size_unit, y_prefix)
+    z_factor, z_prefix = get_factor_prefix(collect(z))
+    z_label = axis_label(grid, sweep_channel, z_prefix)
+    
+    aspect_x = abs(x[end] - x[begin])
+    aspect_y = abs(y[end] - y[begin])
+    aspect_z = max(aspect_x, aspect_y)
+    ax.aspect = (aspect_x, aspect_y, aspect_z)
+
+    ax.xlabel = x_label
+    ax.ylabel = y_label
+    ax.zlabel = z_label
+    
+    r = @views permutedims(r, [2, 3, 1])
+    r_factor, r_prefix = get_factor_prefix(r)
+    r_label = axis_label(grid, response_channel, r_prefix)
+    r_plot = r ./ r_factor
+
+    vol = backend.volume!(x ./ x_factor, y ./ y_factor, z ./ z_factor,
+        r_plot, colorrange = (minimum(r_plot), maximum(r_plot)),
+        transparency=true, colormap=:grays; # viewmode=:fitzoom,
+        kwargs...)
+
+    return vol, r_label
 end

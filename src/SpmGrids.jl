@@ -7,7 +7,7 @@ using Printf
 using TOML
 
 export load_grid, get_channel, get_parameter
-export plot_spectrum, plot_line, plot_plane
+export plot_spectrum, plot_line, plot_plane, plot_cube
 
 const VERSION = VersionNumber(TOML.parsefile(joinpath(@__DIR__, "../Project.toml"))["version"])
 
