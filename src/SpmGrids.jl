@@ -7,7 +7,7 @@ using Printf
 using TOML
 
 export load_grid, get_channel, get_parameter
-export plot_spectrum, plot_line
+export plot_spectrum, plot_line, plot_plane
 
 const VERSION = VersionNumber(TOML.parsefile(joinpath(@__DIR__, "../Project.toml"))["version"])
 
@@ -185,19 +185,19 @@ end
 
 """
     get_channel(grid::SpmGrid, name::AbstractString,
-        index_x::GridRange, index_y::GridRange, index_channel::GridRange=:)::Array{Float32}
+        x_index::GridRange, y_index::GridRange, channel_index::GridRange=:)::Array{Float32}
 
-Returns the data for the channel `name` at the point(s) specified by `index_x`, `index_y`
-The channel data can be indexed by `index_channel`.
+Returns the data for the channel `name` at the point(s) specified by `x_index`, `y_index`
+The channel data can be indexed by `channel_index`.
 """
 function get_channel(grid::SpmGrid, name::AbstractString,
-    index_x::GridRange, index_y::GridRange, index_channel::GridRange=:)::SubArray{Float32}
+    x_index::GridRange, y_index::GridRange, channel_index::GridRange=:)::SubArray{Float32}
 
     idx = get_channel_index(grid, name)
-    if index_channel !== Colon()
-        idx = idx[index_channel]
+    if channel_index !== Colon()
+        idx = idx[channel_index]
     end
-    return @view grid.data[idx, index_x, index_y]
+    return @view grid.data[idx, x_index, y_index]
 end
 
 
@@ -219,15 +219,15 @@ end
 
 """
     get_parameter(grid::SpmGrid, name::AbstractString,
-        index_x::GridRange, index_y::GridRange)::Union{Float32, Array{Float32}}
+        x_index::GridRange, y_index::GridRange)::Union{Float32, Array{Float32}}
 
-Returns the value for parameter `name` at the point(s)specified by `index_x`, `index_y`.
+Returns the value for parameter `name` at the point(s)specified by `x_index`, `y_index`.
 """
 function get_parameter(grid::SpmGrid, name::AbstractString,
-    index_x::GridRange, index_y::GridRange)::Union{Float32, Array{Float32}}
+    x_index::GridRange, y_index::GridRange)::Union{Float32, Array{Float32}}
     
     idx = get_parameter_index(grid, name)
-    return grid.data[idx, index_x, index_y]
+    return grid.data[idx, x_index, y_index]
 end
 
 
