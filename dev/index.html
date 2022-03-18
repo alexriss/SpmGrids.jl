@@ -1,13 +1,99 @@
 <!DOCTYPE html>
-<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>Introduction · SpmGrids.jl</title><script data-outdated-warner src="assets/warner.js"></script><link rel="canonical" href="https://alexriss.github.io/SpmGrids.jl/"/><link href="https://cdnjs.cloudflare.com/ajax/libs/lato-font/3.0.0/css/lato-font.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/juliamono/0.039/juliamono-regular.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/fontawesome.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/solid.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/brands.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.13.11/katex.min.css" rel="stylesheet" type="text/css"/><script>documenterBaseURL="."</script><script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js" data-main="assets/documenter.js"></script><script src="siteinfo.js"></script><script src="../versions.js"></script><link class="docs-theme-link" rel="stylesheet" type="text/css" href="assets/themes/documenter-dark.css" data-theme-name="documenter-dark" data-theme-primary-dark/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="assets/themes/documenter-light.css" data-theme-name="documenter-light" data-theme-primary/><script src="assets/themeswap.js"></script></head><body><div id="documenter"><nav class="docs-sidebar"><a class="docs-logo" href><img src="assets/logo.svg" alt="SpmGrids.jl logo"/></a><div class="docs-package-name"><span class="docs-autofit"><a href>SpmGrids.jl</a></span></div><form class="docs-search" action="search/"><input class="docs-search-query" id="documenter-search-query" name="q" type="text" placeholder="Search docs"/></form><ul class="docs-menu"><li class="is-active"><a class="tocitem" href>Introduction</a><ul class="internal"><li><a class="tocitem" href="#About"><span>About</span></a></li><li><a class="tocitem" href="#Usage"><span>Usage</span></a></li></ul></li><li><a class="tocitem" href="reference/">Reference</a></li></ul><div class="docs-version-selector field has-addons"><div class="control"><span class="docs-label button is-static is-size-7">Version</span></div><div class="docs-selector control is-expanded"><div class="select is-fullwidth is-size-7"><select id="documenter-version-selector"></select></div></div></div></nav><div class="docs-main"><header class="docs-navbar"><nav class="breadcrumb"><ul class="is-hidden-mobile"><li class="is-active"><a href>Introduction</a></li></ul><ul class="is-hidden-tablet"><li class="is-active"><a href>Introduction</a></li></ul></nav><div class="docs-right"><a class="docs-edit-link" href="https://github.com/alexriss/SpmGrids.jl/blob/master/docs/src/index.md#" title="Edit on GitHub"><span class="docs-icon fab"></span><span class="docs-label is-hidden-touch">Edit on GitHub</span></a><a class="docs-settings-button fas fa-cog" id="documenter-settings-button" href="#" title="Settings"></a><a class="docs-sidebar-button fa fa-bars is-hidden-desktop" id="documenter-sidebar-button" href="#"></a></div></header><article class="content" id="documenter-page"><h1 id="SpmGrids"><a class="docs-heading-anchor" href="#SpmGrids">SpmGrids</a><a id="SpmGrids-1"></a><a class="docs-heading-anchor-permalink" href="#SpmGrids" title="Permalink"></a></h1><p>Documentation for <a href="https://github.com/alexriss/SpmGrids.jl">SpmGrids</a>.</p><h2 id="About"><a class="docs-heading-anchor" href="#About">About</a><a id="About-1"></a><a class="docs-heading-anchor-permalink" href="#About" title="Permalink"></a></h2><p>A julia library to analyze scanning tuprobe microscopy grid data. Currently, only <a href="https://www.specs-group.com/nanonis/products/">Nanonis</a> files are supported.</p><h2 id="Usage"><a class="docs-heading-anchor" href="#Usage">Usage</a><a id="Usage-1"></a><a class="docs-heading-anchor-permalink" href="#Usage" title="Permalink"></a></h2><pre><code class="language-julia hljs">using SpmGrids
+<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>Introduction · SpmGrids.jl</title><script data-outdated-warner src="assets/warner.js"></script><link rel="canonical" href="https://alexriss.github.io/SpmGrids.jl/"/><link href="https://cdnjs.cloudflare.com/ajax/libs/lato-font/3.0.0/css/lato-font.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/juliamono/0.039/juliamono-regular.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/fontawesome.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/solid.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/brands.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.13.11/katex.min.css" rel="stylesheet" type="text/css"/><script>documenterBaseURL="."</script><script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js" data-main="assets/documenter.js"></script><script src="siteinfo.js"></script><script src="../versions.js"></script><link class="docs-theme-link" rel="stylesheet" type="text/css" href="assets/themes/documenter-dark.css" data-theme-name="documenter-dark" data-theme-primary-dark/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="assets/themes/documenter-light.css" data-theme-name="documenter-light" data-theme-primary/><script src="assets/themeswap.js"></script></head><body><div id="documenter"><nav class="docs-sidebar"><a class="docs-logo" href><img src="assets/logo.svg" alt="SpmGrids.jl logo"/></a><div class="docs-package-name"><span class="docs-autofit"><a href>SpmGrids.jl</a></span></div><form class="docs-search" action="search/"><input class="docs-search-query" id="documenter-search-query" name="q" type="text" placeholder="Search docs"/></form><ul class="docs-menu"><li class="is-active"><a class="tocitem" href>Introduction</a><ul class="internal"><li><a class="tocitem" href="#About"><span>About</span></a></li><li><a class="tocitem" href="#Usage"><span>Usage</span></a></li><li><a class="tocitem" href="#More-information"><span>More information</span></a></li></ul></li><li><a class="tocitem" href="reference/">Reference</a></li></ul><div class="docs-version-selector field has-addons"><div class="control"><span class="docs-label button is-static is-size-7">Version</span></div><div class="docs-selector control is-expanded"><div class="select is-fullwidth is-size-7"><select id="documenter-version-selector"></select></div></div></div></nav><div class="docs-main"><header class="docs-navbar"><nav class="breadcrumb"><ul class="is-hidden-mobile"><li class="is-active"><a href>Introduction</a></li></ul><ul class="is-hidden-tablet"><li class="is-active"><a href>Introduction</a></li></ul></nav><div class="docs-right"><a class="docs-edit-link" href="https://github.com/alexriss/SpmGrids.jl/blob/master/docs/src/index.md#" title="Edit on GitHub"><span class="docs-icon fab"></span><span class="docs-label is-hidden-touch">Edit on GitHub</span></a><a class="docs-settings-button fas fa-cog" id="documenter-settings-button" href="#" title="Settings"></a><a class="docs-sidebar-button fa fa-bars is-hidden-desktop" id="documenter-sidebar-button" href="#"></a></div></header><article class="content" id="documenter-page"><h1 id="SpmGrids"><a class="docs-heading-anchor" href="#SpmGrids">SpmGrids</a><a id="SpmGrids-1"></a><a class="docs-heading-anchor-permalink" href="#SpmGrids" title="Permalink"></a></h1><p>Documentation for <a href="https://github.com/alexriss/SpmGrids.jl">SpmGrids</a>.</p><h2 id="About"><a class="docs-heading-anchor" href="#About">About</a><a id="About-1"></a><a class="docs-heading-anchor-permalink" href="#About" title="Permalink"></a></h2><p>A julia library to analyze scanning tuprobe microscopy grid data. Currently, only <a href="https://www.specs-group.com/nanonis/products/">Nanonis</a> files are supported.</p><h2 id="Usage"><a class="docs-heading-anchor" href="#Usage">Usage</a><a id="Usage-1"></a><a class="docs-heading-anchor-permalink" href="#Usage" title="Permalink"></a></h2><h3 id="Loading-data-and-parameters"><a class="docs-heading-anchor" href="#Loading-data-and-parameters">Loading data and parameters</a><a id="Loading-data-and-parameters-1"></a><a class="docs-heading-anchor-permalink" href="#Loading-data-and-parameters" title="Permalink"></a></h3><pre><code class="language-julia-repl hljs" style="display:block;">julia&gt; using SpmGrids</code><code class="nohighlight hljs ansi" style="display:block;"></code><br/><code class="language-julia-repl hljs" style="display:block;">julia&gt; grid = load_grid(&quot;Bias_spectroscopy.3ds&quot;);</code><code class="nohighlight hljs ansi" style="display:block;"></code><br/><code class="language-julia-repl hljs" style="display:block;">julia&gt; grid.experiment_parameters  # available parameter names</code><code class="nohighlight hljs ansi" style="display:block;">16-element Vector{String}:
+ &quot;X&quot;
+ &quot;Y&quot;
+ &quot;Z&quot;
+ &quot;Z offset&quot;
+ &quot;Settling time&quot;
+ &quot;Integration time&quot;
+ &quot;Z-Ctrl&quot;
+ &quot;Final Z&quot;
+ &quot;Scan:Current&quot;
+ &quot;Scan:Applied Voltage measured&quot;
+ &quot;Scan:Bias&quot;
+ &quot;Scan:Z&quot;
+ &quot;Scan:Phase&quot;
+ &quot;Scan:Amplitude&quot;
+ &quot;Scan:Frequency Shift&quot;
+ &quot;Scan:Excitation&quot;</code><br/><code class="language-julia-repl hljs" style="display:block;">julia&gt; grid.channel_names  # available channel names</code><code class="nohighlight hljs ansi" style="display:block;">10-element Vector{String}:
+ &quot;Current&quot;
+ &quot;Applied Voltage measured&quot;
+ &quot;Bias&quot;
+ &quot;X&quot;
+ &quot;Y&quot;
+ &quot;Z&quot;
+ &quot;Phase&quot;
+ &quot;Amplitude&quot;
+ &quot;Frequency Shift&quot;
+ &quot;Excitation&quot;</code><br/><code class="language-julia-repl hljs" style="display:block;">julia&gt; grid.size, grid.size_unit, grid.center, grid.angle, grid.pixelsize  # grid parameters</code><code class="nohighlight hljs ansi" style="display:block;">(Float32[1.5f-8, 1.5f-8], &quot;m&quot;, Float32[1.10662f-7, 2.33166f-7], 0.0f0, [20, 20])</code><br/><code class="language-julia-repl hljs" style="display:block;">julia&gt; grid.start_time, grid.end_time  # more parameters</code><code class="nohighlight hljs ansi" style="display:block;">(Dates.DateTime(&quot;2017-03-09T21:19:38&quot;), Dates.DateTime(&quot;2017-03-10T08:21:16&quot;))</code><br/><code class="language-julia-repl hljs" style="display:block;">julia&gt; grid.header  # even more parameters</code><code class="nohighlight hljs ansi" style="display:block;">OrderedCollections.OrderedDict{String, String} with 111 entries:
+  &quot;Grid dim&quot;                          =&gt; &quot;20 x 20&quot;
+  &quot;Grid settings&quot;                     =&gt; &quot;1.106620E-7;2.331660E-7;1.500000E-8;1…
+  &quot;Filetype&quot;                          =&gt; &quot;Linear&quot;
+  &quot;Sweep Signal&quot;                      =&gt; &quot;Bias (V)&quot;
+  &quot;Fixed parameters&quot;                  =&gt; &quot;Sweep Start;Sweep End&quot;
+  &quot;Experiment parameters&quot;             =&gt; &quot;X (m);Y (m);Z (m);Z offset (m);Settli…
+  &quot;# Parameters (4 byte)&quot;             =&gt; &quot;18&quot;
+  &quot;Experiment size (bytes)&quot;           =&gt; &quot;5120&quot;
+  &quot;Points&quot;                            =&gt; &quot;128&quot;
+  &quot;Channels&quot;                          =&gt; &quot;Current (A);Applied Voltage measured …
+  &quot;Delay before measuring (s)&quot;        =&gt; &quot;1.000000E+0&quot;
+  &quot;Experiment&quot;                        =&gt; &quot;Grid Spectroscopy&quot;
+  &quot;Start time&quot;                        =&gt; &quot;09.03.2017 21:19:38&quot;
+  &quot;End time&quot;                          =&gt; &quot;10.03.2017 08:21:16&quot;
+  &quot;User&quot;                              =&gt; &quot;&quot;
+  &quot;Comment&quot;                           =&gt; &quot;KPFM&quot;
+  &quot;Bias&gt;Bias (V)&quot;                     =&gt; &quot;200E-3&quot;
+  &quot;Bias&gt;Calibration (V/V)&quot;            =&gt; &quot;1E+0&quot;
+  &quot;Bias&gt;Offset (V)&quot;                   =&gt; &quot;0E+0&quot;
+  ⋮                                   =&gt; ⋮</code><br/><code class="language-julia-repl hljs" style="display:block;">julia&gt; x = get_channel(grid, &quot;Current&quot;, 5, 5);  # `Current` channel at point 5,5</code><code class="nohighlight hljs ansi" style="display:block;"></code><br/><code class="language-julia-repl hljs" style="display:block;">julia&gt; x = get_channel(grid, &quot;Current&quot;, :, 5);  # `Current` channel for 5th row</code><code class="nohighlight hljs ansi" style="display:block;"></code><br/><code class="language-julia-repl hljs" style="display:block;">julia&gt; #  20th point of `Current` channel for 5th row
+       x = get_channel(grid, &quot;Current&quot;, :, 5, 20);</code><code class="nohighlight hljs ansi" style="display:block;"></code><br/><code class="language-julia-repl hljs" style="display:block;">julia&gt; x = get_channel(grid, grid.sweep_signal, 5, 6);  # sweep signal at point 5,6</code><code class="nohighlight hljs ansi" style="display:block;"></code><br/><code class="language-julia-repl hljs" style="display:block;">julia&gt; p = get_parameter(grid, &quot;Z offset&quot;, 3, 5);  # `Z offset` parameter at point 3,5</code><code class="nohighlight hljs ansi" style="display:block;"></code><br/><code class="language-julia-repl hljs" style="display:block;">julia&gt; # get the first 50 points of the `Current` channel for 5th and 6th rows
+       x = get_channel(grid, &quot;Current&quot;, :, 5:6, 1:50);</code><code class="nohighlight hljs ansi" style="display:block;"></code><br/><code class="language-julia-repl hljs" style="display:block;">julia&gt; size(x) # 50 points of data for 20 columns and 2 rows</code><code class="nohighlight hljs ansi" style="display:block;">(50, 20, 2)</code></pre><h3 id="Plotting-spectra"><a class="docs-heading-anchor" href="#Plotting-spectra">Plotting spectra</a><a id="Plotting-spectra-1"></a><a class="docs-heading-anchor-permalink" href="#Plotting-spectra" title="Permalink"></a></h3><pre><code class="language- hljs">using SpmGrids
+using CairoMakie  # use any Makie backend you like
 
-grid = load_grid(&quot;Bias_spectrocopy.3ds&quot;)
+grid = load_grid(&quot;Bias_spectroscopy.3ds&quot;)
 
-c = get_channel(grid, &quot;Current&quot;, 5, 5)  # get the current channel at point 5,5
-c = get_channel(grid, &quot;Current&quot;, :, 5)  # get the current channel for fifth row
-c = get_channel(grid, &quot;Current&quot;, :, 5, 20)  # get the 20th point of the current channel for fifth row
-c = get_channel(grid, &quot;Current&quot;, :, 5:6, 1:50)  # get the first 50 points of the current channel for fifth and sixth rows, returns a 50x20x2 Array
+fig = Figure(resolution = (800, 400))
+ax = Axis(fig[1, 1])
 
-x = get_channel(grid, grid.sweep_signal, 5, 6)  # get the sweep signal at point 5,6
+# line plot of `Current` vs `Bias` for all specified x and y indices
+plot_spectrum(grid, &quot;Bias&quot;, &quot;Current&quot;, 10:12, 12, backend=CairoMakie)
 
-p = get_parameter(grid, &quot;Z offset&quot;, 3, 5)  # get the `Z offset` parameter at point 3,5</code></pre><p>A more detailed description can be found in the <a href="reference/#Reference">Reference</a></p></article><nav class="docs-footer"><a class="docs-footer-nextpage" href="reference/">Reference »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 0.27.15 on <span class="colophon-date" title="Thursday 17 March 2022 13:58">Thursday 17 March 2022</span>. Using Julia version 1.7.2.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
+fig</code></pre><pre><code class="language- hljs">using SpmGrids
+using GLMakie
+
+grid = load_grid(&quot;Bias_spectroscopy.3ds&quot;)
+
+fig = Figure(resolution = (800, 400))
+ax = Axis(fig[1, 1])
+
+# x, y, as well as channel values can be indexed
+plot_spectrum(grid, &quot;Bias&quot;, &quot;Frequency Shift&quot;, 8, 2:6, 20:120, backend=GLMakie)
+
+# add legend
+fig[1, 2] = Legend(fig, ax, &quot;Legend&quot;, framevisible=false)
+
+fig</code></pre><h3 id="Plotting-lines"><a class="docs-heading-anchor" href="#Plotting-lines">Plotting lines</a><a id="Plotting-lines-1"></a><a class="docs-heading-anchor-permalink" href="#Plotting-lines" title="Permalink"></a></h3><pre><code class="language- hljs">using SpmGrids
+using CairoMakie
+
+grid = load_grid(&quot;Z_spectroscopy.3ds&quot;)
+
+fig = Figure(resolution = (800, 800));
+ax = Axis(fig[1, 1])
+# plot the `Frequency Shift` for 120th point in the sweep for the second row
+plot_line(grid, &quot;Frequency Shift&quot;, :, 2, 120, backend=CairoMakie)
+fig[1, 2] = Legend(fig, ax, &quot;&quot;, framevisible=false, labelsize=10)
+
+ax = Axis(fig[2, 1])
+# plot the `Frequency Shift` at point (2,3) against the sweep signal
+# keywords (e.g. `color`) with be passed to the plot function for forward channel
+plot_line(grid, &quot;Frequency Shift&quot;, 2, 3, :, color=&quot;#a0a0a0&quot;, backend=CairoMakie)
+fig[2, 2] = Legend(fig, ax, &quot;&quot;, framevisible=false, labelsize=10)
+
+ax = Axis(fig[3, 1])
+# plot the `Frequency Shift` at point (3,2) against `Current` channel
+# keywords with suffix `_bwd` (e.g. `color_bwd`) will be passed
+# to the plot function for backward channel
+plot_line(grid, &quot;Frequency Shift&quot;, 3,2, :, channel_x=&quot;Current&quot;, color_bwd=&quot;#a0a0a0&quot;, backend=CairoMakie)
+fig[3, 2] = Legend(fig, ax, &quot;&quot;, framevisible=false, labelsize=10)
+
+fig</code></pre><h2 id="More-information"><a class="docs-heading-anchor" href="#More-information">More information</a><a id="More-information-1"></a><a class="docs-heading-anchor-permalink" href="#More-information" title="Permalink"></a></h2><p>A more detailed description can be found in the <a href="reference/#Reference">Reference</a></p></article><nav class="docs-footer"><a class="docs-footer-nextpage" href="reference/">Reference »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 0.27.15 on <span class="colophon-date" title="Friday 18 March 2022 13:53">Friday 18 March 2022</span>. Using Julia version 1.7.2.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
