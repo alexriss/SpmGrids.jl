@@ -33,14 +33,14 @@ p = get_parameter(grid, "Z offset", 3, 5);  # `Z offset` parameter at point 3,5
 
 # get the first 50 points of the `Current` channel for 5th and 6th rows
 x = get_channel(grid, "Current", :, 5:6, 1:50);
-size(x) # returns a 50x20x2 Array
+size(x) # 50 points of data for 20 columns and 2 rows
 ```
 
 ### Plotting spectra
 
 ```@example
 using SpmGrids
-using CairoMakie  # use any Makie backend you like
+using CairoMakie
 
 grid = load_grid("Bias_spectroscopy.3ds")
 

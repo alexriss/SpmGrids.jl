@@ -3,13 +3,39 @@ const unit_factors = [1.0f18, 1.0f15, 1.0f12, 1.0f9, 1.0f6, 1.0f3, 1.0, 1.0f-3, 
 
 const color_spectrum_fwd = "#241571"
 const color_spectrum_bwd = "#B80F0A"
+const color_spectrum_light_fwd = "#9495f1"
+const color_spectrum_light_bwd = "#F89F9A"
 
 
 skipnan(x) = filter(!isnan, x)
 
 
 """
-    convert_to_range(r:GridRange)::GridRange
+    get_kwargs(kwargs::Base.Pairs; backward::Bool=false)::Dict{Symbol,Any}
+
+Extracts the keyword arguments for forward and backward plots. The arguments for backward
+plot are suffixed by `_bwd`.
+"""
+function get_kwargs(kwargs::Base.Pairs; backward::Bool=false)::Dict{Symbol,Any}
+    res = Dict{Symbol,Any}()
+    for (k,v) in kwargs
+        kstr = string(k)
+        if backward
+            if endswith(kstr, "_bwd")
+                res[Symbol(kstr[1:end-4])] = v
+            end
+        else
+            if !endswith(kstr, "_bwd")
+                res[Symbol(kstr)] = v
+            end
+        end
+    end
+    return res
+end
+
+
+"""
+    convert_to_range(r::GridRange)::GridRange
 
 If the GridRange is an Int-type index, then it is converted to a UnitRange.
 UnitRange and Colon types are left as is.
@@ -49,6 +75,21 @@ end
 
 
 """
+    format_with_prefix(number::Float32; delimiter::String="")::String
+
+formats a number to a notation that uses SI prefixes.
+"""
+function format_with_prefix(number::Float32; delimiter::String=" ")::String
+    if number === 0f0
+        return "0$delimiter"
+    end
+    unit_factor, unit_prefix = get_factor_prefix(number)
+    number = number / unit_factor
+    return @sprintf("%0.2f", number) * "$delimiter$unit_prefix"
+end
+
+
+"""
     function get_factor_prefix(numbers::Array{Float32})::Tuple{Float32, String}
 
 Determines the best SI unit prefix for a given array `numbers`.
@@ -56,6 +97,16 @@ Returns a tuple of the factor and the prefix.
 """
 function get_factor_prefix(numbers::AbstractArray{<:Float32})::Tuple{Float32, String}
     return get_factor_prefix(maximum(abs.(skipnan(numbers))))
+end
+
+
+"""
+    axis_label(name::String, unit::String="",  prefix::String="")::String
+
+Formats axis label in the form of `name / prefix unit`.
+"""
+function axis_label(name::String, unit::String="",  prefix::String="")::String
+    return "$name / $(prefix)$(unit)"
 end
 
 
@@ -71,10 +122,12 @@ function axis_label(grid::SpmGrid, name::String, prefix::String="")::String
 
     idx = findfirst(isequal(name), names)
     if idx === nothing
-        return "$name / $(prefix)"
+        unit = ""
     else
-        return "$name / $(prefix)$(units[idx])"
+        unit = units[idx]
     end
+
+    return axis_label(name, unit, prefix)
 end
 
 
@@ -93,10 +146,10 @@ end
 
 
 """
-    function plot_spectrum(grid::SpmGrid, channel_x::String, channel_y::String,
+    plot_spectrum(grid::SpmGrid, channel_x::String, channel_y::String,
         index_x::GridRange, index_y::GridRange, index_channel::GridRange=:;
-        backward::Bool=true, ax::Any=nothing, backend::Module=Main)::Nothing
-
+        backward::Bool=true, ax::Any=nothing, backend::Module=Main,
+        kwargs...)::Nothing)
 
 Plots a scatter plot of `channel_y` vs `channel_x` on the given `index_x` and `y_index`.
 Additionally, the spectrum data can be indexed by `index_channel`.
@@ -105,13 +158,16 @@ If `include_backward` is `true`` (default), the plot will include data from back
 Before using this function, a [Makie](https://makie.juliaplots.org/) backend (`GLMakie`, `CairoMakie` or `WGLMakie`) should be imported
 and the figure or axis should be set up.
 A particular Axis can be specified via the `ax` keyword argument.
-By default, the Makie backend from the `Main`` module is used
-- it can also be directly specified via the `backend` keyword argument.
+By default, the Makie backend from the `Main` module is used;
+it can also be directly specified via the `backend` keyword argument.
 
+Extra keyword arguments can be specified and will be passed through to the plot function.
+Keyword arrguments with the suffix `_bwd` will be used for plotting of the backward scan.
 """
 function plot_spectrum(grid::SpmGrid, channel_x::String, channel_y::String,
     index_x::GridRange, index_y::GridRange, index_channel::GridRange=:;
-    backward::Bool=true, ax::Any=nothing, backend::Module=Main)::Nothing
+    backward::Bool=true, ax::Any=nothing, backend::Module=Main,
+    kwargs...)::Nothing
 
     check_makie_loaded(backend)
 
@@ -155,6 +211,13 @@ function plot_spectrum(grid::SpmGrid, channel_x::String, channel_y::String,
         index_y = 1:size(x, 3)
     end
 
+    kwargs_fwd = get_kwargs(kwargs)
+    kwargs_bwd = get_kwargs(kwargs, backward=true)
+
+    n = max(2, length(index_x) * length(index_y)) # should be at least 2 to create the cgrad in the next line
+    colors_fwd = backend.cgrad([color_spectrum_fwd, color_spectrum_light_fwd], n)
+    colors_bwd = backend.cgrad([color_spectrum_bwd, color_spectrum_light_bwd], n)
+    i = 1
     for (i_x,idx_x) in enumerate(index_x), (i_y,idx_y) in enumerate(index_y)
         x_plot = @view x[:, i_x, i_y]
         y_plot = @view y[:, i_x, i_y]
@@ -165,10 +228,14 @@ function plot_spectrum(grid::SpmGrid, channel_x::String, channel_y::String,
 
         if backward && length(x_bwd) > 0
             backend.scatterlines!(x_plot_bwd ./ x_factor, y_plot_bwd ./ y_factor,
-                linewidth=2, markersize=2, color=color_spectrum_bwd, label="$(idx_x), $(idx_y) bwd")
+                linewidth=2, markersize=2, color=colors_bwd[i], label="$(idx_x), $(idx_y) bwd";
+                kwargs_bwd...)
         end
         backend.scatterlines!(x_plot ./ x_factor, y_plot ./ y_factor,
-            linewidth=2, markersize=2, color=color_spectrum_fwd, label="$(idx_x), $(idx_y)")
+            linewidth=2, markersize=2, color=colors_fwd[i], label="$(idx_x), $(idx_y)";
+            kwargs_fwd...)
+
+        i+=1
     end
 
     return nothing
@@ -176,25 +243,30 @@ end
 
 
 """
-    function plot_line(grid::SpmGrid, channel_x::String, channel_y::String,
+    plot_line(grid::SpmGrid, channel_y::String,
         index_x::GridRange, index_y::GridRange, index_channel::GridRange=nothing;
-        backward::Bool=true, ax::Any=nothing, backend::Module=Main)::Nothing
+        channel_x::String="", backward::Bool=true, ax::Any=nothing, backend::Module=Main,
+        kwargs...)::Nothing)
 
-
-Plots a line in the three-dimensional data spanned by xy plane and the spectroscopy data `channel_y` vs `channel_x`.
+Plots a line in the three-dimensional data spanned by xy plane and the spectroscopy data `channel_y`.
 Indexing is done through `index_x`, `index_y` and `index_channel` and should be done such that a
 one-dimensional array is obtained.
+It is also possible to plot `channel_y` vs `channel_x`
+(which defaults ot the sweep signal if not specified) for one point in the grid
 If `include_backward` is `true`` (default), the plot will include data from backward sweep as well (if they exist).
 
 Before using this function, a [Makie](https://makie.juliaplots.org/) backend (`GLMakie`, `CairoMakie` or `WGLMakie`) should be imported
 and the figure or axis should be set up.
 A particular Axis can be specified via the `ax` keyword argument.
-By default, the Makie backend from the `Main`` module is used
-- it can also be directly specified via the `backend` keyword argument.
+By default, the Makie backend from the `Main` module is used;
+it can also be directly specified via the `backend` keyword argument.
+
+Extra 
 """
-function plot_line(grid::SpmGrid, channel_x::String, channel_y::String,
+function plot_line(grid::SpmGrid, channel_y::String,
     index_x::GridRange, index_y::GridRange, index_channel::GridRange=nothing;
-    backward::Bool=true, ax::Any=nothing, backend::Module=Main)::Nothing
+    channel_x::String="", backward::Bool=true, ax::Any=nothing, backend::Module=Main,
+    kwargs...)::Nothing
 
     check_makie_loaded(backend)
 
@@ -206,35 +278,68 @@ function plot_line(grid::SpmGrid, channel_x::String, channel_y::String,
     index_y = convert_to_range(index_y)
     index_channel = convert_to_range(index_channel)
 
-    l = get_channel(grid, channel_name, index_x, index_y, index_channel)
+    y = get_channel(grid, channel_y, index_x, index_y, index_channel)
 
-    if count(isequal(1), size(l)) != 2 && count(x -> x > 1, size(l)) != 1
-        @error "Use indexes to obtain a one-dimensional array. Currently, the array size is $(size(l))."
+    if count(isequal(1), size(y)) < 2 && all(size(y) .> 0)
+        @error "Use indexes to obtain a one-dimensional array (e.g. of size 128,1,1). Currently, the array size is $(size(l))."
     end
 
-    if "$channel_x [bwd]" in grid.channel_names
-        l_bwd = get_channel(grid, "$channel_x [bwd]", index_x, index_y, index_channel)
-        @assert size(l_bwd) == size(l)
+    if "$channel_y [bwd]" in grid.channel_names
+        y_bwd = get_channel(grid, "$channel_y [bwd]", index_x, index_y, index_channel)
+        @assert size(x_bwd) == size(y)
     else
-        l_bwd = Float32[]
+        y_bwd = Float32[]
     end
 
-    # todo: x-axis is x-range or y-range if these indixes arent length-0
-    # otherwise x-axis is the sweep signal or given by an extra parameter (i.e the z-axis of the cube)
-    # y-axis is always the channel
+    nc, nx, ny = size(y)
+    gridx_span = range(0, grid.size[1], length=grid.pixelsize[1])
+    gridy_span = range(0, grid.size[2], length=grid.pixelsize[2])
+    sweep_span = get_channel(grid, grid.sweep_signal, 1, 1, :)
+    if nx != 1
+        x = gridx_span[index_x]
+        x_factor, x_prefix = get_factor_prefix(collect(x))
+        x_label = axis_label("grid x", grid.size_unit, x_prefix)
+        point1 = format_with_prefix(gridy_span[index_y[]]) * grid.size_unit
+        point2 = format_with_prefix(sweep_span[index_channel[]]) * grid.sweep_signal_unit
+        label = "at grid y=$point1 and $(grid.sweep_signal)=$point2"
+        y = @view y[1,:,1]  # all other dimensions are of length 1
+    elseif ny != 1
+        x = gridy_span[index_y]
+        x_factor, x_prefix = get_factor_prefix(collect(x))
+        x_label = axis_label("grid y", grid.size_unit, x_prefix)
+        point1 = format_with_prefix(gridx_span[index_x[]]) * grid.size_unit
+        point2 = format_with_prefix(sweep_span[index_channel[]]) * grid.sweep_signal_unit
+        label = "at grid x=$point1 and $(grid.sweep_signal)=$point2"
+        y = @view y[1,1,:]  # all other dimensions are of length 1
+    else
+        if channel_x === ""
+            channel_x = grid.sweep_signal
+        end
+        x = get_channel(grid, channel_x, index_x[], index_y[], index_channel)
+        x_factor, x_prefix = get_factor_prefix(x)
+        x_label = axis_label(grid, channel_x, x_prefix)
+        point1 = format_with_prefix(gridx_span[index_x[]]) * grid.size_unit
+        point2 = format_with_prefix(gridy_span[index_y[]]) * grid.size_unit
+        label= "at grid x=$point1 and grid y=$point2"
+        y = @view y[:,1,1]  # all other dimensions are of length 1
+    end
 
-    # y axis should be labeled channel_y / unit at channel x = .. unit
-    # x axis should be labeled x, y, or channel channel_x
-
-
-    x_factor, x_prefix = get_factor_prefix(x_all)
-    y_factor, y_prefix = get_factor_prefix(y_all)
-
-    x_label = SpmGrids.axis_label(grid, channel_x, x_prefix)
-    y_label = SpmGrids.axis_label(grid, channel_y, y_prefix)
+    y_factor, y_prefix = get_factor_prefix(y)
+    y_label = axis_label(grid, channel_y, y_prefix)
     ax.xlabel = x_label
     ax.ylabel = y_label
 
+    kwargs_fwd = get_kwargs(kwargs)
+    kwargs_bwd = get_kwargs(kwargs, backward=true)
+
+    if backward && length(y_bwd) > 0
+        backend.scatterlines!(x ./ x_factor, y_bwd ./ y_factor,
+            linewidth=2, markersize=2, color=color_spectrum_bwd, label="$(label) bwd";
+            kwargs_bwd...)
+    end
+    backend.scatterlines!(x ./ x_factor, y ./ y_factor,
+        linewidth=2, markersize=2, color=color_spectrum_fwd, label=label;
+        kwargs_fwd...)
 
     return nothing
 end

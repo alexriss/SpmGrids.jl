@@ -3,6 +3,7 @@ module SpmGrids
 # using DataFrames
 using DataStructures: OrderedDict
 using Dates
+using Printf
 using TOML
 
 export load_grid, get_channel, get_parameter
@@ -29,13 +30,13 @@ mutable struct SpmGrid
     sweep_signal::String
     sweep_signal_unit::String
 
-    size::Vector{Float64}
+    size::Vector{Float32}
     size_unit::String
-    center::Vector{Float64}
-    angle::Float64
+    center::Vector{Float32}
+    angle::Float32
     pixelsize::Vector{Int}
 
-    bias::Union{Missing,Float64}
+    bias::Union{Missing,Float32}
     z_feedback::Union{Missing,Bool}
     
     start_time::DateTime
@@ -46,7 +47,7 @@ SpmGrid(filename::String) = SpmGrid(
         String[], String[], String[], 0,
         Float32[],
         "", "",
-        Float64[], "", Float64[], 0., Int[],
+        Float32[], "", Float32[], 0., Int[],
         missing, missing,
         DateTime(-1), DateTime(-1)
     )
@@ -88,7 +89,7 @@ function load_grid(filename::AbstractString; header_only::Bool=false)::SpmGrid
         end
 
         if haskey(grid.header, "Grid settings")
-            grid_settings = parse.(Float64, split(grid.header["Grid settings"], ";"))
+            grid_settings = parse.(Float32, split(grid.header["Grid settings"], ";"))
             grid.center = [grid_settings[1], grid_settings[2]]
             grid.size = [grid_settings[3], grid_settings[4]]
             grid.size_unit = "m"
@@ -109,7 +110,7 @@ function load_grid(filename::AbstractString; header_only::Bool=false)::SpmGrid
 
         sweep_signal_name_unit = rsplit(grid.header["Sweep Signal"], limit=2)
         grid.sweep_signal = sweep_signal_name_unit[1]
-        grid.sweep_signal_unit = sweep_signal_name_unit[2]
+        grid.sweep_signal_unit = strip(sweep_signal_name_unit[2], ['(', ')'])
 
         num_parameters = parse(Int, grid.header["# Parameters (4 byte)"])
 
@@ -123,7 +124,7 @@ function load_grid(filename::AbstractString; header_only::Bool=false)::SpmGrid
         end
 
         if haskey(grid.header, "Bias>Bias (V)")
-            grid.bias = parse(Float64, grid.header["Bias>Bias (V)"])
+            grid.bias = parse(Float32, grid.header["Bias>Bias (V)"])
         end
 
         # read binary data

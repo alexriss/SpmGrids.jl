@@ -48,6 +48,8 @@ end
 
 
 @testset "plotting" begin
+    # grid = load_grid("Grid Spectroscopy006.3ds") # contains bwd and fwd, also is stopped after a few lines
+
     x_name = grid.sweep_signal
     y_name = "Frequency Shift"
     y = get_channel(grid, y_name, 6, 6)
