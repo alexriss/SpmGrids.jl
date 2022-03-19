@@ -152,7 +152,7 @@ _(Still need to figure out why the colorbars are not aligned.)_
 
 ```@example
 using SpmGrids
-using GLMakie
+using CairoMakie
 
 grid = load_grid("Bias_spectroscopy.3ds")
 
@@ -160,7 +160,7 @@ fig = Figure(resolution = (500, 400));
 ax = Axis3(fig[1, 1], perspectiveness=0.5)
 
 vol, cb_label = plot_cube(grid, "Current", :, :, :,
-    colormap=:Spectral_11, backend=GLMakie)
+    colormap=:Spectral_11, backend=CairoMakie)
 Colorbar(fig[1,2], vol, label=cb_label)
 
 fig
