@@ -152,7 +152,8 @@ end
 
     fig = CairoMakie.Figure(resolution = (800, 400));
     ax = CairoMakie.Axis(fig[1, 1])
-    plot_line(grid, "Frequency Shift", 5, 2, 1:120, color_bwd="#e0e0e0", sweep_channel="Z")
+    plot_line(grid, "Frequency Shift", 5, 2, 1:120, color_bwd="#e0e0e0",
+        sweep_channel="Z")
     @test ax.xlabel[] == "Z / nm"
     @test ax.ylabel[] == "Frequency Shift / Hz"
     @test abs(ax.finallimits[].origin[1] / -4.942342 - 1.0) < 0.2
@@ -163,8 +164,55 @@ end
     # x channel should be sorted
     fig = CairoMakie.Figure(resolution = (800, 400));
     ax = CairoMakie.Axis(fig[1, 1])
-    plot_line(grid, "Frequency Shift", 5, 2, 1:120, color_bwd="#e0e0e0", sweep_channel="Current")
+    plot_line(grid, "Frequency Shift", 5, 2, 1:120, color_bwd="#e0e0e0",
+        sweep_channel="Current")
     @test ax.xlabel[] == "Current / pA"
     @test ax.ylabel[] == "Frequency Shift / Hz"
+end
 
+@testset "plot plane" begin
+    grid = load_grid("Grid Spectroscopy006.3ds") # contains bwd and fwd, also is stopped after a few lines
+
+    fig = CairoMakie.Figure(resolution = (800, 400));
+    ax = CairoMakie.Axis(fig[1, 1])
+    hm, cb_label, label = plot_plane(grid, "Frequency Shift", 5, :, 1:120, color_bwd="#e0e0e0")
+    @test ax.xlabel[] == "grid y / nm"
+    @test ax.ylabel[] == "Z / nm"
+    @test cb_label == "Frequency Shift / Hz"
+    @test label == "grid x=387.10 pm"
+
+    fig = CairoMakie.Figure(resolution = (800, 400));
+    ax = CairoMakie.Axis(fig[1, 1])
+    hm, cb_label, label = plot_plane(grid, "Amplitude", :, 1, 1:120, backward=true)
+    @test ax.xlabel[] == "grid x / nm"
+    @test ax.ylabel[] == "Z [bwd] / nm"
+    @test cb_label == "Amplitude [bwd] / pm"
+    @test label == "grid y=0 m"
+
+    grid = load_grid("Grid Spectroscopy002.3ds")
+    fig = CairoMakie.Figure(resolution = (800, 400));
+    ax = CairoMakie.Axis(fig[1, 1])
+    hm, cb_label, label = plot_plane(grid, "Amplitude", :, :, 20, backward=true)
+    # this should give out two warnings, because there are no backward channels
+
+    ax.title = label
+    Colorbar(fig[1, 2], hm, label=cb_label)
+    @test ax.xlabel[] == "grid x / nm"
+    @test ax.ylabel[] == "grid y / nm"
+    @test cb_label == "Amplitude / pm"  # there is no bwd channel here
+    @test label == "Bias=155.12 mV"
+end
+
+@testset "plot plane" begin
+    grid = load_grid("Grid Spectroscopy006.3ds") # contains bwd and fwd, also is stopped after a few lines
+    fig = CairoMakie.Figure(resolution = (800, 400));
+    ax = CairoMakie.Axis3(fig[1, 1], perspectiveness=0.5)
+
+    vol, cb_label = plot_cube(grid, "Amplitude", :, :, :,
+        backward=true, colormap=:Spectral_11, backend=CairoMakie)
+
+    @test ax.xlabel[] == "grid x / nm"
+    @test ax.ylabel[] == "grid y / nm"
+    @test ax.zlabel[] == "Z [bwd] / nm"
+    @test cb_label == "Amplitude [bwd] / pm"
 end

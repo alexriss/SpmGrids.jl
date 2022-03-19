@@ -118,6 +118,30 @@ end
 
 
 """
+    get_sweep_span(data::Array{Float32,3})::Vector{Float32}
+
+Extracts the maximum valid range of the sweep signal (first dimension in `data`),
+i.e. it picks the values along this axis that are not NaNs.
+It also checks if all values are equal across the other dimensions.
+"""
+function get_sweep_span(data::AbstractArray{Float32,3})::Vector{Float32}
+    res = data[:, 1, 1]
+    for i in 1:length(res)
+        dataf = filter(!isnan, @view data[i, :, :])
+        if length(dataf) == 0
+            res[i] = NaN32
+        else
+            res[i] = dataf[1]
+            if !all(dataf .== dataf[1])
+                @warn "Sweep signal is not constant across x,y dimensions."
+            end
+        end
+    end
+    return res
+end
+
+
+"""
     axis_label(name::String, unit::String="",  prefix::String="")::String
 
 Formats axis label in the form of `name / prefix unit`.
@@ -159,6 +183,19 @@ function check_makie_loaded(backend::Module)::Nothing
     end
 
     return nothing
+end
+
+
+"""
+    xyindex_to_point(grid::SpmGrid, index_x::Int, index_y)::Tuple{Float32,Float32}
+
+Converts `index_x` and `index_y` of `grid` to point coordinates in physical units.
+"""
+function xyindex_to_point(grid::SpmGrid, index_x::Int, index_y::Int)::Tuple{Float32,Float32}
+    gridx_span = range(0, grid.size[1], length=grid.pixelsize[1])
+    gridy_span = range(0, grid.size[2], length=grid.pixelsize[2])
+
+    return gridx_span[index_x], gridy_span[index_y]
 end
 
 
@@ -480,9 +517,9 @@ function plot_plane(grid::SpmGrid, response_channel::String,
     nc, nx, ny = size(z)
     gridx_span = range(0, grid.size[1], length=grid.pixelsize[1])
     gridy_span = range(0, grid.size[2], length=grid.pixelsize[2])
-    sweep_span = get_channel(grid, grid.sweep_signal, 1, 1, :)
+    sweep_span = get_sweep_span(get_channel(grid, grid.sweep_signal, x_index, y_index, :))
     if nx != 1 && nc != 1
-        x = gridy_span[y_index]
+        x = gridy_span[x_index]
         y = sweep_span[channel_index]
         
         x_factor, x_prefix = get_factor_prefix(collect(x))
@@ -603,7 +640,7 @@ function plot_cube(grid::SpmGrid, response_channel::String,
     nc, nx, ny = size(r)
     gridx_span = range(0, grid.size[1], length=grid.pixelsize[1])
     gridy_span = range(0, grid.size[2], length=grid.pixelsize[2])
-    sweep_span = get_channel(grid, grid.sweep_signal, 1, 1, :)
+    sweep_span = get_sweep_span(get_channel(grid, grid.sweep_signal, x_index, y_index, :))
     x = gridx_span[x_index]
     y = gridy_span[y_index]
     z = sweep_span[channel_index]
@@ -629,10 +666,17 @@ function plot_cube(grid::SpmGrid, response_channel::String,
     r_label = axis_label(grid, response_channel, r_prefix)
     r_plot = r ./ r_factor
 
-    @show size(r_plot), ax.aspect, size(x), size(y), size(z)
-    @show z
+    # @show size(r_plot), ax.aspect, size(x), size(y), size(z)
+    # @show z
 
-    vol = backend.volume!(x ./ x_factor, y ./ y_factor, z ./ z_factor,
+    # get rid of NaN valuies in the sweep signal
+    sel = findall(!isnan, z)
+    z = (z ./ z_factor)[sel]
+    r_plot = r_plot[:, :, sel]
+    x = collect(x ./ x_factor)
+    y = collect(y ./ y_factor)
+
+    vol = backend.volume!(x, y, z,
         r_plot, colorrange = (minimum(skipnan(r_plot)), maximum(skipnan(r_plot))),
         transparency=true, colormap=:grays;
         kwargs...)

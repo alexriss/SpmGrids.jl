@@ -8,6 +8,7 @@ using TOML
 
 export load_grid, get_channel, get_parameter
 export plot_spectrum, plot_line, plot_plane, plot_cube
+export xyindex_to_point
 
 const VERSION = VersionNumber(TOML.parsefile(joinpath(@__DIR__, "../Project.toml"))["version"])
 

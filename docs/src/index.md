@@ -44,7 +44,7 @@ using CairoMakie  # use any Makie backend you like
 
 grid = load_grid("Bias_spectroscopy.3ds")
 
-fig = Figure(resolution = (800, 400))
+fig = Figure(resolution = (600, 300))
 ax = Axis(fig[1, 1])
 
 # line plot of `Current` vs `Bias` for all specified x and y indices
@@ -59,7 +59,7 @@ using CairoMakie
 
 grid = load_grid("Bias_spectroscopy.3ds")
 
-fig = Figure(resolution = (800, 400))
+fig = Figure(resolution = (600, 300))
 ax = Axis(fig[1, 1])
 
 # x, y, as well as channel values can be indexed
@@ -97,6 +97,71 @@ ax = Axis(fig[3, 1])
 # to the plot function for backward channel
 plot_line(grid, "Frequency Shift", 3,2, :, sweep_channel="Current", color_bwd="#a0a0a0", backend=CairoMakie)
 fig[3, 2] = Legend(fig, ax, "", framevisible=false, labelsize=10)
+
+fig
+```
+
+### Plotting planes
+
+```@example plane
+using SpmGrids
+using CairoMakie
+
+grid = load_grid("Bias_spectroscopy.3ds")
+
+fig = Figure(resolution = (800, 400));
+g1 = fig[1, 1] = GridLayout()
+g2 = fig[1, 2] = GridLayout()
+
+ax1 = Axis(g1[1, 1])
+
+# plot the `Frequency Shift` for 120th point in the sweep
+hm1, cb_label1, label1 = plot_plane(grid, "Frequency Shift", :, :, 120,
+    ax=ax1, backend=CairoMakie)
+ax1.title = label1
+
+# add colorbars
+Colorbar(g1[1, 2], hm1, label=cb_label1)
+
+fig
+```
+
+```@example plane
+# add second plot
+ax2 = Axis(g2[1, 1])
+
+# plot `Current` values of the backward sweep
+# for 10th to 100th point in the sweep for the 15th row
+hm2, cb_label2, label2 = plot_plane(grid, "Current", :, 15, 1:100,
+    ax=ax2, backward=true, colormap=:imola, backend=CairoMakie)
+ax2.title = label2
+
+Colorbar(g2[1, 2], hm2, label=cb_label2)
+
+# mark 15th row in the first plot
+px, py = xyindex_to_point(grid, 1, 15)
+hlines!(ax1, py * 1e9, color=:red)  # we need to convert to nm
+
+fig
+```
+
+_(Still need to figure out why the colorbars are not aligned.)_
+
+
+### Plotting cubes
+
+```@example
+using SpmGrids
+using GLMakie
+
+grid = load_grid("Bias_spectroscopy.3ds")
+
+fig = Figure(resolution = (500, 400));
+ax = Axis3(fig[1, 1], perspectiveness=0.5)
+
+vol, cb_label = plot_cube(grid, "Current", :, :, :,
+    colormap=:Spectral_11, backend=GLMakie)
+Colorbar(fig[1,2], vol, label=cb_label)
 
 fig
 ```
