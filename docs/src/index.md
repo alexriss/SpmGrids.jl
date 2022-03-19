@@ -55,7 +55,7 @@ fig
 
 ```@example
 using SpmGrids
-using GLMakie
+using CairoMakie
 
 grid = load_grid("Bias_spectroscopy.3ds")
 
@@ -63,7 +63,7 @@ fig = Figure(resolution = (800, 400))
 ax = Axis(fig[1, 1])
 
 # x, y, as well as channel values can be indexed
-plot_spectrum(grid, "Bias", "Frequency Shift", 8, 2:6, 20:120, backend=GLMakie)
+plot_spectrum(grid, "Bias", "Frequency Shift", 8, 2:6, 20:120, backend=CairoMakie)
 
 # add legend
 fig[1, 2] = Legend(fig, ax, "Legend", framevisible=false)
@@ -95,7 +95,7 @@ ax = Axis(fig[3, 1])
 # plot the `Frequency Shift` at point (3,2) against `Current` channel
 # keywords with suffix `_bwd` (e.g. `color_bwd`) will be passed
 # to the plot function for backward channel
-plot_line(grid, "Frequency Shift", 3,2, :, channel_x="Current", color_bwd="#a0a0a0", backend=CairoMakie)
+plot_line(grid, "Frequency Shift", 3,2, :, sweep_channel="Current", color_bwd="#a0a0a0", backend=CairoMakie)
 fig[3, 2] = Legend(fig, ax, "", framevisible=false, labelsize=10)
 
 fig

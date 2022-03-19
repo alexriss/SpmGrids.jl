@@ -35,6 +35,19 @@ end
 
 
 """
+    combined_sort!(arr1::Vector{Float32}, arr2::Vector{Float32})::Nothing
+
+Sorts the values in two arrays by the values in the first one.
+"""
+function combined_sort!(arr1::Vector{Float32}, arr2::Vector{Float32})::Nothing
+    p = sortperm(arr1)
+    arr1 .= arr1[p]
+    arr2 .= arr2[p]
+    return nothing
+end
+
+
+"""
     convert_to_range(r::GridRange)::GridRange
 
 If the GridRange is an Int-type index, then it is converted to a UnitRange.
@@ -155,7 +168,7 @@ end
         backward::Bool=true, ax::Any=nothing, backend::Module=Main,
         kwargs...)::Nothing
 
-Plots a scatter plot of `response_channel` vs `sweep_channel` on the given `x_index` and `y_index`.
+Plots a line plot of `response_channel` vs `sweep_channel` on the given `x_index` and `y_index`.
 If `sweep_channel` is `""`, then the sweep signal will be used for `sweep_channel`.
 Additionally, the spectrum data can be indexed by `channel_index`.
 If `include_backward` is `true`` (default), the plot will include data from backward sweep as well (if they exist).
@@ -231,16 +244,30 @@ function plot_spectrum(grid::SpmGrid, sweep_channel::String, response_channel::S
     for (i_x,idx_x) in enumerate(x_index), (i_y,idx_y) in enumerate(y_index)
         x_plot = @view x[:, i_x, i_y]
         y_plot = @view y[:, i_x, i_y]
-        if length(x_bwd) > 0
+        if backward && length(x_bwd) > 0
             x_plot_bwd = @view x_bwd[:, i_x, i_y]
             y_plot_bwd = @view y_bwd[:, i_x, i_y]
         end
 
-        backend.scatterlines!(ax, x_plot ./ x_factor, y_plot ./ y_factor,
+        x_plot = x_plot ./ x_factor
+        y_plot = y_plot ./ y_factor
+        # sort x axis if necessary
+        if !issorted(x_plot) && !issorted(x_plot, rev=true)
+            combined_sort!(x_plot, y_plot)
+        end
+        if backward && length(x_bwd) > 0
+            x_plot_bwd = x_plot_bwd ./ x_factor
+            y_plot_bwd = y_plot_bwd ./ y_factor
+            if !issorted(x_plot_bwd) && !issorted(x_plot_bwd, rev=true)
+                combined_sort!(x_plot_bwd, y_plot_bwd)
+            end
+        end
+
+        backend.scatterlines!(ax, x_plot, y_plot,
             linewidth=2, markersize=2, color=colors_fwd[i], label="$(idx_x), $(idx_y)";
             kwargs_fwd...)
         if backward && length(x_bwd) > 0
-            backend.scatterlines!(x_plot_bwd ./ x_factor, y_plot_bwd ./ y_factor,
+            backend.scatterlines!(x_plot_bwd, y_plot_bwd,
                 linewidth=2, markersize=2, color=colors_bwd[i], label="$(idx_x), $(idx_y) bwd";
                 kwargs_bwd...)
         end
@@ -359,14 +386,28 @@ function plot_line(grid::SpmGrid, response_channel::String,
     ax.xlabel = x_label
     ax.ylabel = y_label
 
+    x = x ./ x_factor
+    y = y ./ y_factor
+    # sort x axis if necessary
+    if !issorted(x) && !issorted(x, rev=true)
+        combined_sort!(x, y)
+    end
+    if backward && length(y_bwd) > 0
+        x_bwd = x_bwd ./ x_factor
+        y_bwd = y_bwd ./ y_factor
+        if !issorted(x_bwd) && !issorted(x_bwd, rev=true)
+            combined_sort!(x_bwd, y_bwd)
+        end
+    end
+
     kwargs_fwd = get_kwargs(kwargs)
     kwargs_bwd = get_kwargs(kwargs, backward=true)
 
-    backend.scatterlines!(x ./ x_factor, y ./ y_factor,
+    backend.scatterlines!(x, y,
         linewidth=2, markersize=2, color=color_spectrum_fwd, label=label;
         kwargs_fwd...)
     if backward && length(y_bwd) > 0
-        backend.scatterlines!(x_bwd ./ x_factor, y_bwd ./ y_factor,
+        backend.scatterlines!(x_bwd, y_bwd,
             linewidth=2, markersize=2, color=color_spectrum_bwd, label="$(label) bwd";
             kwargs_bwd...)
     end
@@ -381,7 +422,7 @@ end
         backward::Bool=false, ax::Any=nothing, backend::Module=Main,
         kwargs...)::Tuple{Any, String}
 
-Plots a plane of `response_channel` in the three-dimensional data spanned by x,y plane and the spectroscopy data.
+Plots a plane of `response_channel` in the three-dimensional data spanned by x,y plane and the seep signal.
 Indexing is done through `x_index`, `y_index` and `channel_index` and should be done such that a
 two-dimensional array is obtained.
 If `backward` is set to `true`, then data from the backward sweep is plotted if it exists.
@@ -504,7 +545,7 @@ end
         backward::Bool=false, ax::Any=nothing, backend::Module=Main,
         kwargs...)::Tuple{Any,String}
 
-Plots a cube of `response_channel` in the three-dimensional data spanned by the x,y plane and the spectroscopy data.
+Plots a cube of `response_channel` in the three-dimensional data spanned by the x,y plane and the sweep signal.
 Indexing is done through `x_index`, `y_index` and `channel_index` and should be done such that a
 three-dimensional array is obtained.
 If `backward` is set to `true`, then data from the backward sweep is plotted if it exists.
@@ -588,9 +629,12 @@ function plot_cube(grid::SpmGrid, response_channel::String,
     r_label = axis_label(grid, response_channel, r_prefix)
     r_plot = r ./ r_factor
 
+    @show size(r_plot), ax.aspect, size(x), size(y), size(z)
+    @show z
+
     vol = backend.volume!(x ./ x_factor, y ./ y_factor, z ./ z_factor,
-        r_plot, colorrange = (minimum(r_plot), maximum(r_plot)),
-        transparency=true, colormap=:grays; # viewmode=:fitzoom,
+        r_plot, colorrange = (minimum(skipnan(r_plot)), maximum(skipnan(r_plot))),
+        transparency=true, colormap=:grays;
         kwargs...)
 
     return vol, r_label

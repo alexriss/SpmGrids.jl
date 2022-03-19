@@ -101,6 +101,13 @@ end
     plot_spectrum(grid, "", "Current", :, 2, color_bwd="#e0e0e0")  # only NaNs in 5th row
     @test ax.xlabel[] == "Z / nm"
     @test ax.ylabel[] == "Current / pA"
+
+    # x channel shoudl be sorted
+    fig = CairoMakie.Figure(resolution = (800, 400));
+    ax = CairoMakie.Axis(fig[1, 1])
+    plot_spectrum(grid, "Frequency Shift", "Current", :, 2, color_bwd="#e0e0e0")  # only NaNs in 5th row
+    @test ax.xlabel[] == "Frequency Shift / Hz"
+    @test ax.ylabel[] == "Current / pA"
 end
 
 
@@ -145,11 +152,19 @@ end
 
     fig = CairoMakie.Figure(resolution = (800, 400));
     ax = CairoMakie.Axis(fig[1, 1])
-    plot_line(grid, "Frequency Shift", 5, 2, 1:120, color_bwd="#e0e0e0", x_channel="Z")
+    plot_line(grid, "Frequency Shift", 5, 2, 1:120, color_bwd="#e0e0e0", sweep_channel="Z")
     @test ax.xlabel[] == "Z / nm"
     @test ax.ylabel[] == "Frequency Shift / Hz"
     @test abs(ax.finallimits[].origin[1] / -4.942342 - 1.0) < 0.2
     @test abs(ax.finallimits[].origin[2] / -7.784694 - 1.0) < 0.2
     @test abs(ax.finallimits[].widths[1] / 0.5133338f0 - 1.0) < 0.2
     @test abs(ax.finallimits[].widths[2] / 6.1346087f0 - 1.0) < 0.2
+
+    # x channel should be sorted
+    fig = CairoMakie.Figure(resolution = (800, 400));
+    ax = CairoMakie.Axis(fig[1, 1])
+    plot_line(grid, "Frequency Shift", 5, 2, 1:120, color_bwd="#e0e0e0", sweep_channel="Current")
+    @test ax.xlabel[] == "Current / pA"
+    @test ax.ylabel[] == "Frequency Shift / Hz"
+
 end
