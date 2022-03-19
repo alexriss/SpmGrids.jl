@@ -150,7 +150,7 @@ _(Still need to figure out why the colorbars are not aligned.)_
 
 ### Plotting cubes
 
-```@example
+```julia
 using SpmGrids
 using GLMakie
 
@@ -164,10 +164,13 @@ vol, cb_label = plot_cube(grid, "Current", :, :, :,
 Colorbar(fig[1,2], vol, label=cb_label)
 
 fig
-save("cube_plot.png", fig); nothing  # hide
+# save("cube_plot.png", fig); nothing  # hide
+nothing # hide
 ```
-![](cube_plot.png)
 
+![Cube plot](cube_plot.png)
+
+All the plots can be interactive if you use the right [Makie backend](https://makie.juliaplots.org/stable/documentation/backends/).
 ## More information
 
 A more detailed description can be found in the [Reference](@ref)
