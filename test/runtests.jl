@@ -44,6 +44,8 @@ using Test
     @test all(get_parameter(grid, "Z offset", 3, :) .≈ 0.0)
     @test get_parameter(grid, "Z", 3, 5) ≈ -1.1132063f-8
     @test get_channel(grid, "Current", 20, 7, 20:24) ≈ Float32[1.3028699f-10, 1.2868269f-10, 1.2712124f-10, 1.2609777f-10, 1.2497206f-10]
+
+    @test all(xyindex_to_point(grid, 1, 10) .≈ (0, 7.105263f-9))
 end
 
 
