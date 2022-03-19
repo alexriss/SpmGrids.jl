@@ -164,8 +164,6 @@ vol, cb_label = plot_cube(grid, "Current", :, :, :,
 Colorbar(fig[1,2], vol, label=cb_label)
 
 fig
-# save("cube_plot.png", fig); nothing  # hide
-nothing # hide
 ```
 
 ![Cube plot](cube_plot.png)
