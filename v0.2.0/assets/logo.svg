@@ -1,0 +1,82 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" class="blue-cube" viewBox="20 20 230 200">
+<!-- based on https://css-tricks.com/use-and-reuse-everything-in-svg-even-animations/ -->
+<style>
+.cube-unit {
+  fill-opacity: 0.9;
+  stroke-miterlimit: 0;
+}
+
+.blue-cube {
+  --mainColor: #00aafe;
+  --strokeColor: #0078b0;
+  --lightColor: #00abfb;
+  --darkColor: #0089d0;
+}
+
+@keyframes moveX {
+  to {
+    transform: translateX(var(--translate, 35px));
+    animation-timing-function: ease-out;
+  }
+}
+@keyframes moveY {
+  to {
+    transform: translateY(var(--translate, -35px));
+    animation-timing-function: ease-out;
+  }
+}
+.m-left, .m-right {
+  animation: 1s moveX alternate infinite; /* paused; */
+}
+
+.m-up, .m-down {
+  animation: 1s moveY alternate infinite; /* paused; */
+}
+
+.m-left {
+  --translate: -50px;
+}
+
+.m-right {
+  --translate: 50px;
+}
+
+svg:hover * {
+  animation-play-state: running;
+}
+</style>
+  <defs>
+  <g id="cube" class="cube-unit">
+    <rect width="21" height="24" fill="var(--lightColor)" stroke="var(--strokeColor)" transform="skewY(30)"/>
+    <rect width="21" height="24" fill="var(--darkColor)" stroke="var(--strokeColor)" transform="skewY(-30) translate(21 24.3)"/>
+    <rect width="21" height="21" fill="var(--mainColor)" stroke="var(--strokeColor)" transform="scale(1.41,.81) rotate(45) translate(0 -21)"/>
+  </g>
+  </defs>
+    <use xlink:href="#cube" x="121" y="112"/>
+    <use xlink:href="#cube" x="100" y="124"/>
+    <use xlink:href="#cube" x="142" y="124"/>
+    <use xlink:href="#cube" x="121" y="136"/>
+    <use class="m-left" xlink:href="#cube" x="79" y="136"/>
+    <use xlink:href="#cube" x="163" y="136"/>
+    <use xlink:href="#cube" x="142" y="148"/>
+    <use xlink:href="#cube" x="100" y="148"/>
+    <use xlink:href="#cube" x="121" y="160"/>
+    <use xlink:href="#cube" x="121" y="88"/>
+    <use xlink:href="#cube" x="100" y="100"/>
+    <use xlink:href="#cube" x="142" y="100"/>
+    <use xlink:href="#cube" x="121" y="112"/>
+    <use xlink:href="#cube" x="79" y="112"/>
+    <use xlink:href="#cube" x="163" y="112"/>
+    <use class="m-right" xlink:href="#cube" x="142" y="124"/>
+    <use xlink:href="#cube" x="100" y="124"/>
+    <use xlink:href="#cube" x="121" y="136"/>
+    <use xlink:href="#cube" x="121" y="64"/>
+    <use class="m-up" xlink:href="#cube" x="100" y="76"/>
+    <use xlink:href="#cube" x="142" y="76"/>
+    <use xlink:href="#cube" x="121" y="88"/>
+    <use xlink:href="#cube" x="79" y="88"/>
+    <use xlink:href="#cube" x="163" y="88"/>
+    <use xlink:href="#cube" x="142" y="100"/>
+    <use xlink:href="#cube" x="100" y="100"/>
+    <use xlink:href="#cube" x="121" y="112"/>
+  </svg>
