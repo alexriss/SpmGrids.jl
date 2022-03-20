@@ -164,13 +164,12 @@ vol, cb_label = plot_cube(grid, "Current", :, :, :,
 Colorbar(fig[1,2], vol, label=cb_label)
 
 fig
-
-# save("cube_plot.png", fig); nothing  # hide
 ```
 
 ![Cube plot](cube_plot.png)
 
 All the plots can be interactive if you use the right [Makie backend](https://makie.juliaplots.org/stable/documentation/backends/).
+
 ## More information
 
 A more detailed description can be found in the [Reference](@ref)
