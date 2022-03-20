@@ -18,18 +18,22 @@ const GridRange = Union{Int,UnitRange{Int},Colon}
 mutable struct SpmGrid
     filename::String
     header::OrderedDict{String,String}
+
     channel_names::Vector{String}
-    channel_units::Vector{String}
+    channel_units::Dict{String,String}
+    fixed_parameter_names::Vector{String}
+    experiment_parameter_names::Vector{String}
+    parameter_units::Dict{String,String}
 
-    fixed_parameters::Vector{String}
-    experiment_parameters::Vector{String}
-    experiment_parameters_units::Vector{String}
+    sweep_signal::String  # unit is in dict `channel_units`
     points::Int
-
     data::Array{Float32}
 
-    sweep_signal::String
-    sweep_signal_unit::String
+    # generated data stored here
+    generated_channel_names::Vector{String}  # units in dict `channel_units`
+    generated_parameter_names::Vector{String}  # units in dict `parameter_units`
+    generated_channels::Dict{String,Vector{Float32}}
+    generated_parameters::Dict{String,Vector{Float32}}
 
     size::Vector{Float32}
     size_unit::String
@@ -44,10 +48,10 @@ mutable struct SpmGrid
     end_time::DateTime
 end
 SpmGrid(filename::String) = SpmGrid(
-        filename, OrderedDict(), String[], String[],
-        String[], String[], String[], 0,
-        Float32[],
-        "", "",
+        filename, OrderedDict{String,String}(),
+        String[], Dict{String,String}(), String[], String[], Dict{String,String}(),
+        "", 0, Float32[],
+        String[], String[], Dict{String,Vector{Float32}}(), Dict{String,Vector{Float32}}(),
         Float32[], "", Float32[], 0., Int[],
         missing, missing,
         DateTime(-1), DateTime(-1)
@@ -55,6 +59,7 @@ SpmGrid(filename::String) = SpmGrid(
 
 
 include("plot_functions.jl")
+include("interactive_functions.jl")
 
 
 """
@@ -99,19 +104,24 @@ function load_grid(filename::AbstractString; header_only::Bool=false)::SpmGrid
             @warn "Grid settings are not specified in the file."
         end
 
-        grid.fixed_parameters = split(grid.header["Fixed parameters"], ";")
+        grid.fixed_parameter_names = split(grid.header["Fixed parameters"], ";")
         experiment_parameters_names_units = rsplit.(split(grid.header["Experiment parameters"], ";"), limit=2)
-        grid.experiment_parameters = first.(experiment_parameters_names_units)
-        grid.experiment_parameters_units = strip.(last.(experiment_parameters_names_units), (['(', ')'], ))
+        grid.experiment_parameter_names = first.(experiment_parameters_names_units)
+        parameters_units = strip.(last.(experiment_parameters_names_units), (['(', ')'], ))
+        grid.parameter_units = Dict(zip(grid.experiment_parameter_names, parameters_units))
 
         channels= split(grid.header["Channels"], ";")
         channel_names_units = rsplit.(channels, limit=2)
         grid.channel_names = first.(channel_names_units)
-        grid.channel_units = strip.(last.(channel_names_units), (['(', ')'], ))
+        channel_units = strip.(last.(channel_names_units), (['(', ')'], ))
+        grid.channel_units = Dict(zip(grid.channel_names, channel_units))
 
         sweep_signal_name_unit = rsplit(grid.header["Sweep Signal"], limit=2)
         grid.sweep_signal = sweep_signal_name_unit[1]
-        grid.sweep_signal_unit = strip(sweep_signal_name_unit[2], ['(', ')'])
+        sweep_signal_unit = strip(sweep_signal_name_unit[2], ['(', ')'])
+        if sweep_signal_unit != grid.channel_units[grid.sweep_signal]
+            @warn "Sweep signal unit ($sweep_signal_unit) does not match the unit for its channel ($(grid.sweep_signal): $(grid.channel_units[grid.sweep_signal]))."
+        end
 
         num_parameters = parse(Int, grid.header["# Parameters (4 byte)"])
 
@@ -145,7 +155,7 @@ end
 Reads binary data from 3ds file. The file pointer should be set to the start of the binary data.
 """
 function read_binary_data!(grid::SpmGrid, f::IOStream, num_parameters::Int)::Nothing
-    @assert num_parameters == length(grid.fixed_parameters) + length(grid.experiment_parameters)
+    @assert num_parameters == length(grid.fixed_parameter_names) + length(grid.experiment_parameter_names)
 
     data = Array{Float32}(undef, num_parameters + grid.points * length(grid.channel_names), grid.pixelsize...)
 
@@ -175,7 +185,7 @@ function get_channel_index(grid::SpmGrid, name::AbstractString)::UnitRange{Int}
         throw(ArgumentError("""Channel name "$(name)" not found in the SpmGrid. Available channel names are $(join(grid.channel_names, ", "))."""))
     end
 
-    n_parameters = length(grid.fixed_parameters) + length(grid.experiment_parameters)
+    n_parameters = length(grid.fixed_parameter_names) + length(grid.experiment_parameter_names)
 
     start = n_parameters + (i_channel - 1) * grid.points + 1
     stop = start + grid.points - 1 
@@ -208,7 +218,7 @@ end
 Returns the index for the parameter specified by `name`. This can directly be used to index the `data` field of the `SpmGrid`.
 """
 function get_parameter_index(grid::SpmGrid, name::AbstractString)::Int
-    par_names = vcat(grid.fixed_parameters, grid.experiment_parameters)
+    par_names = vcat(grid.fixed_parameter_names, grid.experiment_parameter_names)
     i_par = findfirst(isequal(name), par_names)
     if i_par === nothing
         throw(ArgumentError("""Parameter name "$(name)" not found in the SpmGrid. Available parameter names are $(join(par_names, ", "))."""))

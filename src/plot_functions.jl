@@ -158,16 +158,12 @@ Formats axis label in the form of `name / prefix unit`.
 `unit` is ommited if a corresponding `unit` can not be found to the given `name`.
 """
 function axis_label(grid::SpmGrid, name::String, prefix::String="")::String
-    names = vcat(grid.channel_names, grid.experiment_parameters)
-    units = vcat(grid.channel_units, grid.experiment_parameters_units)
-
-    idx = findfirst(isequal(name), names)
-    if idx === nothing
-        unit = ""
+    if haskey(grid.channel_units, name)
+        unit = grid.channel_units[name]
     else
-        unit = units[idx]
+        unit = ""
     end
-
+    
     return axis_label(name, unit, prefix)
 end
 
@@ -377,7 +373,7 @@ function plot_line(grid::SpmGrid, response_channel::String,
         x_factor, x_prefix = get_factor_prefix(collect(x))
         x_label = axis_label("grid x", grid.size_unit, x_prefix)
         point1 = format_with_prefix(gridy_span[y_index[]]) * grid.size_unit
-        point2 = format_with_prefix(sweep_span[channel_index[]]) * grid.sweep_signal_unit
+        point2 = format_with_prefix(sweep_span[channel_index[]]) * grid.channel_units[grid.sweep_signal]
         label = "grid y=$point1, $(grid.sweep_signal)=$point2"
         y = @view y[1,:,1]  # all other dimensions are of length 1
         if length(y_bwd) > 0
@@ -389,7 +385,7 @@ function plot_line(grid::SpmGrid, response_channel::String,
         x_factor, x_prefix = get_factor_prefix(collect(x))
         x_label = axis_label("grid y", grid.size_unit, x_prefix)
         point1 = format_with_prefix(gridx_span[x_index[]]) * grid.size_unit
-        point2 = format_with_prefix(sweep_span[channel_index[]]) * grid.sweep_signal_unit
+        point2 = format_with_prefix(sweep_span[channel_index[]]) * grid.channel_units[grid.sweep_signal]
         label = "grid x=$point1, $(grid.sweep_signal)=$point2"
         y = @view y[1,1,:]  # all other dimensions are of length 1
         if length(y_bwd) > 0
@@ -556,7 +552,7 @@ function plot_plane(grid::SpmGrid, response_channel::String,
         y_label = axis_label("grid y", grid.size_unit, y_prefix)
 
         c = sweep_span[channel_index][]
-        point = format_with_prefix(c) * grid.sweep_signal_unit
+        point = format_with_prefix(c) * grid.channel_units[grid.sweep_signal]
         label = "$(grid.sweep_signal)=$point"
 
         ax.aspect = backend.DataAspect()

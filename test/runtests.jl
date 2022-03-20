@@ -21,12 +21,17 @@ using Test
 
     @test length(grid.data) == 0  # 0 because `header_only` is true
 
-    @test grid.fixed_parameters == ["Sweep Start", "Sweep End"]
-    @test grid.experiment_parameters == ["X", "Y", "Z", "Z offset", "Settling time", "Integration time", "Z-Ctrl", "Final Z", "Scan:Current", "Scan:Applied Voltage measured", "Scan:Bias", "Scan:Z", "Scan:Phase", "Scan:Amplitude", "Scan:Frequency Shift", "Scan:Excitation"]
-    @test grid.experiment_parameters_units == ["m", "m", "m", "m", "s", "s", "hold", "m", "A", "V", "V", "m", "deg", "m", "Hz", "V"]
-    @test grid.fixed_parameters == ["Sweep Start", "Sweep End"]
-    @test grid.channel_names == ["Current", "Applied Voltage measured", "Bias", "X", "Y", "Z", "Phase", "Amplitude", "Frequency Shift", "Excitation"]
-    @test grid.channel_units == ["A", "V", "V", "m", "m", "m", "deg", "m", "Hz", "V"]
+    @test grid.fixed_parameter_names == ["Sweep Start", "Sweep End"]
+    @test grid.experiment_parameter_names == ["X", "Y", "Z", "Z offset", "Settling time", "Integration time",
+        "Z-Ctrl", "Final Z", "Scan:Current", "Scan:Applied Voltage measured", "Scan:Bias", "Scan:Z",
+        "Scan:Phase", "Scan:Amplitude", "Scan:Frequency Shift", "Scan:Excitation"]
+    @test getindex.((grid.parameter_units, ), grid.experiment_parameter_names) ==
+        ["m", "m", "m", "m", "s", "s", "hold", "m", "A", "V", "V", "m", "deg", "m", "Hz", "V"]
+    @test grid.fixed_parameter_names == ["Sweep Start", "Sweep End"]
+    @test grid.channel_names == ["Current", "Applied Voltage measured", "Bias", "X", "Y", "Z", "Phase",
+        "Amplitude", "Frequency Shift", "Excitation"]
+    @test getindex.((grid.channel_units, ), grid.channel_names) ==
+        ["A", "V", "V", "m", "m", "m", "deg", "m", "Hz", "V"]
 
     @test grid.sweep_signal == "Bias"
 
@@ -205,7 +210,7 @@ end
     @test label == "Bias=155.12 mV"
 end
 
-@testset "plot plane" begin
+@testset "plot cube" begin
     grid = load_grid("Grid Spectroscopy006.3ds") # contains bwd and fwd, also is stopped after a few lines
     fig = CairoMakie.Figure(resolution = (800, 400));
     ax = CairoMakie.Axis3(fig[1, 1], perspectiveness=0.5)
