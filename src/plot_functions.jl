@@ -142,11 +142,32 @@ end
 
 
 """
+    get_range(data::Array{Float32})::Tuple{Float32,Float32}
+
+Calculates range (i.e. min and max) of data. If all data is the same, the range is expanded.
+"""
+function get_range(data::Array{Float32})::Tuple{Float32,Float32}
+    data = skipnan(data)
+    if length(data) === 0
+        data = [0f0]
+    end
+    data_min = minimum(data)
+    data_max = maximum(data)
+    if data_min == data_max  # makie seems to have problems with the colorbars if min=max
+        delta = max(1e-2, abs(data_min) * 1e-2)  # since the data is always normalized, we can do this
+        data_min -= delta
+        data_max += delta
+    end
+    return (data_min, data_max)
+end
+
+
+"""
     axis_label(name::String, unit::String="",  prefix::String="")::String
 
 Formats axis label in the form of `name / prefix unit`.
 """
-function axis_label(name::String, unit::String="",  prefix::String="")::String
+function axis_label(name::String, unit::String="", prefix::String="")::String
     return "$name / $(prefix)$(unit)"
 end
 
@@ -155,7 +176,7 @@ end
     axis_label(grid::SpmGrid, name::String, prefix::String="")::String
 
 Formats axis label in the form of `name / prefix unit`.
-`unit` is ommited if a corresponding `unit` can not be found to the given `name`.
+`unit` is ommited if a corresponding `unit` can not be found to the given `name` of a channel.
 """
 function axis_label(grid::SpmGrid, name::String, prefix::String="")::String
     if haskey(grid.channel_units, name)
@@ -164,6 +185,18 @@ function axis_label(grid::SpmGrid, name::String, prefix::String="")::String
         unit = ""
     end
     
+    return axis_label(name, unit, prefix)
+end
+
+
+"""
+    axis_parameter_label(grid::SpmGrid, name::String, prefix::String="")::String
+
+Formats axis label in the form of `name / prefix unit`.
+`unit` is ommited if a corresponding `unit` can not be found to the given `name` of a parameter.
+"""
+function axis_parameter_label(grid::SpmGrid, name::String, prefix::String="")::String
+    unit = get_parameter_unit(grid, name)
     return axis_label(name, unit, prefix)
 end
 
@@ -312,6 +345,11 @@ function plot_spectrum(grid::SpmGrid, sweep_channel::String, response_channel::S
 end
 
 
+function plot_parameter_line()
+    # todo
+end
+
+
 """
     plot_line(grid::SpmGrid, response_channel::String,
         x_index::GridRange, y_index::GridRange, channel_index::GridRange=nothing;
@@ -450,15 +488,78 @@ end
 
 
 """
-    plot_plane(grid::SpmGrid, response_channel::String,
-        x_index::GridRange, y_index::GridRange, channel_index::GridRange=nothing;
-        backward::Bool=false, ax::Any=nothing, backend::Module=Main,
-        kwargs...)::Tuple{Any, String}
+    get_data_parameter_plane(grid::SpmGrid, parameter::String,
+        x_index::GridRange, y_index::GridRange;
+        backend::Module=Main, observable::Bool=false)::NamedTuple
 
-Plots a plane of `response_channel` in the three-dimensional data spanned by x,y plane and the seep signal.
-Indexing is done through `x_index`, `y_index` and `channel_index` and should be done such that a
-two-dimensional array is obtained.
-If `backward` is set to `true`, then data from the backward sweep is plotted if it exists.
+
+Returns the data used for a plane plot of `parameter` in the three-dimensional data
+spanned by x,y plane and the parameter. Indexing is done through `x_index`, `y_index`
+and should be done such that a two-dimensional array is obtained.
+If `observable` is set to `true`, then observables are returned.
+A Makie backend should be given, too.
+
+Returns a NamedTuple.
+"""
+function get_data_parameter_plane(grid::SpmGrid, parameter::String,
+    x_index::GridRange, y_index::GridRange;
+    backend::Module=Main, observable::Bool=false)::NamedTuple
+
+    x_index = convert_to_range(x_index)
+    y_index = convert_to_range(y_index)
+
+    z = get_parameter(grid, parameter, x_index, y_index)
+
+    if !all(size(z) .> 0)
+        @error "Use indexes to obtain a two-dimensional array (e.g. of size 128,128). Currently, the array size is $(size(z))."
+    end
+
+    gridx_span = range(0, grid.size[1], length=grid.pixelsize[1])
+    gridy_span = range(0, grid.size[2], length=grid.pixelsize[2])
+    x = gridx_span[x_index]
+    y = gridy_span[y_index]
+
+    x_factor, x_prefix = get_factor_prefix(collect(x))
+    x_label = axis_label("grid x", grid.size_unit, x_prefix)
+    y_factor, y_prefix = get_factor_prefix(collect(y))
+    y_label = axis_label("grid y", grid.size_unit, y_prefix)
+
+    label = parameter
+    ax_aspect = backend.DataAspect()
+
+    z_factor, z_prefix = get_factor_prefix(z)
+    z_label = axis_parameter_label(grid, parameter, z_prefix)
+
+    x = collect(x) ./ x_factor
+    y = collect(y) ./ y_factor
+    z = collect(z) ./ z_factor
+
+    if observable
+        return (x=Observable(x), y=Observable(y), data=Observable(z),
+            colorrange=Observable(get_range(z)),
+            x_factor=Observable(x_factor), x_prefix=Observable(x_prefix), x_label=Observable(x_label),
+            y_factor=Observable(y_factor), y_prefix=Observable(y_prefix), y_label=Observable(y_label),
+            data_factor=Observable(z_factor), data_prefix=Observable(z_prefix), data_label=Observable(z_label),
+            plot_label=Observable(label), ax_aspect=Observable(ax_aspect))
+    else
+        return (x=x, y=y, data=z,
+            colorrange=get_range(z),
+            x_factor=x_factor, x_prefix=x_prefix, x_label=x_label,
+            y_factor=y_factor, y_prefix=y_prefix, y_label=y_label,
+            data_factor=z_factor, data_prefix=z_prefix, data_label=z_label,
+            plot_label=label, ax_aspect=ax_aspect)
+    end
+end
+
+
+"""
+plot_parameter_plane(grid::SpmGrid, parameter::String,
+        x_index::GridRange, y_index::GridRange;
+        ax::Any=nothing, backend::Module=Main,
+        kwargs...)::NamedTuple
+
+Plots values of `parameters` as a function of the x,y plane
+Indexing is done through `x_index`, `y_index`.
 
 Before using this function, a [Makie](https://makie.juliaplots.org/) backend (`GLMakie`, `CairoMakie` or `WGLMakie`) should be imported
 and the figure or axis should be set up.
@@ -468,12 +569,12 @@ it can also be directly specified via the `backend` keyword argument.
 
 Extra keyword arguments can be specified and will be passed through to the plot function.
 
-Returns a tuple containing the heatmap, the colorbar label and the plot label.
+Returns a NamedTuple containing the heatmap, the colorbar label and the plot label.
 """
-function plot_plane(grid::SpmGrid, response_channel::String,
-    x_index::GridRange, y_index::GridRange, channel_index::GridRange=nothing;
-    backward::Bool=false, ax::Any=nothing, backend::Module=Main,
-    kwargs...)::Tuple{Any,String,String}
+function plot_parameter_plane(grid::SpmGrid, parameter::String,
+    x_index::GridRange, y_index::GridRange;
+    ax::Any=nothing, backend::Module=Main,
+    kwargs...)::NamedTuple
 
     check_makie_loaded(backend)
 
@@ -482,6 +583,38 @@ function plot_plane(grid::SpmGrid, response_channel::String,
     else
         backend.current_axis!(ax)
     end
+
+    data = get_data_parameter_plane(grid, parameter, x_index, y_index)
+
+    ax.aspect = data.ax_aspect
+    ax.xlabel = data.x_label
+    ax.ylabel = data.y_label
+    
+    hm = backend.heatmap!(data.x, data.y, data.data,
+        colormap=:grays, label=data.plot_label; kwargs...)
+
+    return (plot=hm, data_label=data.data_label, plot_label=data.plot_label)
+end
+
+
+"""
+    get_data_plane(grid::SpmGrid, response_channel::String,
+        x_index::GridRange, y_index::GridRange, channel_index::GridRange=:;
+        backward::Bool=false, backend::Module=Main, observable::Bool=false)::NamedTuple
+
+
+Returns the data used for a plane plot of `response_channel` in the three-dimensional data
+spanned by x,y plane and the sweep signal. Indexing is done through `x_index`, `y_index`
+and `channel_index` and should be done such that a two-dimensional array is obtained.
+If `backward` is set to `true`, then data from the backward sweep is plotted if it exists.
+If `observable` is set to `true`, then observables are returned.
+A Makie backend should be given, too.
+    
+Returns a NamedTuple.
+"""
+function get_data_plane(grid::SpmGrid, response_channel::String,
+    x_index::GridRange, y_index::GridRange, channel_index::GridRange=:;
+    backward::Bool=false, backend::Module=Main, observable::Bool=false)::NamedTuple
 
     # for now, the sweep_channel is always the sweep signal
     # it is the only one that has the same values for all points
@@ -526,7 +659,7 @@ function plot_plane(grid::SpmGrid, response_channel::String,
         point = format_with_prefix(gridy_span[y_index[]]) * grid.size_unit
         label = "grid y=$point"
 
-        ax.aspect = 1
+        ax_aspect = 1
         z = @views z[:,:,1]'  # y dimension is 1
     elseif ny != 1 && nc != 1
         x = gridx_span[y_index]
@@ -540,7 +673,7 @@ function plot_plane(grid::SpmGrid, response_channel::String,
         point = format_with_prefix(gridx_span[x_index[]]) * grid.size_unit
         label = "grid x=$point"
 
-        ax.aspect = 1
+        ax_aspect = 1
         z = @views z[:,1,:]' # x dimension is 1
     else
         x = gridx_span[x_index]
@@ -555,32 +688,46 @@ function plot_plane(grid::SpmGrid, response_channel::String,
         point = format_with_prefix(c) * grid.channel_units[grid.sweep_signal]
         label = "$(grid.sweep_signal)=$point"
 
-        ax.aspect = backend.DataAspect()
+        ax_aspect = backend.DataAspect()
         z = @view z[1,:,:]  # channel dimension is 1
     end
 
     z_factor, z_prefix = get_factor_prefix(z)
     z_label = axis_label(grid, response_channel, z_prefix)
 
-    ax.xlabel = x_label
-    ax.ylabel = y_label
-    
-    hm = backend.heatmap!(x ./ x_factor, y ./ y_factor, z ./ z_factor,
-        colormap=:grays, label=label; kwargs...)
+    x = collect(x) ./ x_factor
+    y = collect(y) ./ y_factor
+    z = collect(z) ./ z_factor
 
-    return hm, z_label, label
+    if observable
+        return (x=Observable(x), y=Observable(y), data=Observable(z),
+            colorrange=Observable(get_range(z)),
+            x_factor=Observable(x_factor), x_prefix=Observable(x_prefix), x_label=Observable(x_label),
+            y_factor=Observable(y_factor), y_prefix=Observable(y_prefix), y_label=Observable(y_label),
+            data_factor=Observable(z_factor), data_prefix=Observable(z_prefix), data_label=Observable(z_label),
+            plot_label=Observable(label), ax_aspect=Observable(ax_aspect))
+    else
+        return (x=x, y=y, data=z,
+            colorrange=get_range(z),
+            x_factor=x_factor, x_prefix=x_prefix, x_label=x_label,
+            y_factor=y_factor, y_prefix=y_prefix, y_label=y_label,
+            data_factor=z_factor, data_prefix=z_prefix, data_label=z_label,
+            plot_label=label, ax_aspect=ax_aspect)
+    end
+
 end
 
 
-"""
-    function plot_cube(grid::SpmGrid, response_channel::String,
-        x_index::GridRange, y_index::GridRange, channel_index::GridRange=nothing;
-        backward::Bool=false, ax::Any=nothing, backend::Module=Main,
-        kwargs...)::Tuple{Any,String}
 
-Plots a cube of `response_channel` in the three-dimensional data spanned by the x,y plane and the sweep signal.
+"""
+    plot_plane(grid::SpmGrid, response_channel::String,
+        x_index::GridRange, y_index::GridRange, channel_index::GridRange=:;
+        backward::Bool=false, ax::Any=nothing, backend::Module=Main,
+        kwargs...)::NamedTuple
+
+Plots a plane of `response_channel` in the three-dimensional data spanned by x,y plane and the sweep signal.
 Indexing is done through `x_index`, `y_index` and `channel_index` and should be done such that a
-three-dimensional array is obtained.
+two-dimensional array is obtained.
 If `backward` is set to `true`, then data from the backward sweep is plotted if it exists.
 
 Before using this function, a [Makie](https://makie.juliaplots.org/) backend (`GLMakie`, `CairoMakie` or `WGLMakie`) should be imported
@@ -591,12 +738,12 @@ it can also be directly specified via the `backend` keyword argument.
 
 Extra keyword arguments can be specified and will be passed through to the plot function.
 
-Returns a tuple containing the volume-plot, and a colorbar label.
+Returns a NamedTuple containing the heatmap, the colorbar label and the plot label.
 """
-function plot_cube(grid::SpmGrid, response_channel::String,
-    x_index::GridRange, y_index::GridRange, channel_index::GridRange=nothing;
+function plot_plane(grid::SpmGrid, response_channel::String,
+    x_index::GridRange, y_index::GridRange, channel_index::GridRange=:;
     backward::Bool=false, ax::Any=nothing, backend::Module=Main,
-    kwargs...)::Tuple{Any,String}
+    kwargs...)::NamedTuple
 
     check_makie_loaded(backend)
 
@@ -605,6 +752,37 @@ function plot_cube(grid::SpmGrid, response_channel::String,
     else
         backend.current_axis!(ax)
     end
+
+    data = get_data_plane(grid, response_channel, x_index, y_index, channel_index,
+        backward=backward)
+
+    ax.aspect = data.ax_aspect
+    ax.xlabel = data.x_label
+    ax.ylabel = data.y_label
+    
+    hm = backend.heatmap!(data.x, data.y, data.data,
+        colormap=:grays, colorrrange=data.colorrange, label=data.plot_label; kwargs...)
+
+    return (plot=hm, data_label=data.data_label, plot_label=data.plot_label)
+end
+
+
+"""
+    get_data_cube(grid::SpmGrid, response_channel::String,
+        x_index::GridRange, y_index::GridRange, channel_index::GridRange=:;
+        backward::Bool=false)::NamedTuple
+
+Returns the data used for a cube plot of `response_channel` in the three-dimensional data spanned
+by the x,y plane and the sweep signal. Indexing is done through `x_index`, `y_index` and
+`channel_index` and should be done such that a three-dimensional array is obtained.
+If `backward` is set to `true`, then data from the backward sweep is plotted if it exists.
+If `observable` is set to `true`, then observables are returned.
+
+Returns a NamedTuple.
+"""
+function get_data_cube(grid::SpmGrid, response_channel::String,
+    x_index::GridRange, y_index::GridRange, channel_index::GridRange=:;
+    backward::Bool=false, observable::Bool=false)::NamedTuple
 
     # for now, the sweep_channel is always the sweep signal
     # it is the only one that has the same values for all points
@@ -651,19 +829,12 @@ function plot_cube(grid::SpmGrid, response_channel::String,
     aspect_x = abs(x[end] - x[begin])
     aspect_y = abs(y[end] - y[begin])
     aspect_z = max(aspect_x, aspect_y)
-    ax.aspect = (aspect_x, aspect_y, aspect_z)
+    ax_aspect = (aspect_x, aspect_y, aspect_z)
 
-    ax.xlabel = x_label
-    ax.ylabel = y_label
-    ax.zlabel = z_label
-    
     r = @views permutedims(r, [2, 3, 1])
     r_factor, r_prefix = get_factor_prefix(r)
     r_label = axis_label(grid, response_channel, r_prefix)
     r_plot = r ./ r_factor
-
-    # @show size(r_plot), ax.aspect, size(x), size(y), size(z)
-    # @show z
 
     # get rid of NaN valuies in the sweep signal
     sel = findall(!isnan, z)
@@ -672,10 +843,75 @@ function plot_cube(grid::SpmGrid, response_channel::String,
     x = collect(x ./ x_factor)
     y = collect(y ./ y_factor)
 
-    vol = backend.volume!(x, y, z,
-        r_plot, colorrange = (minimum(skipnan(r_plot)), maximum(skipnan(r_plot))),
+    colorrange = get_range(r_plot)
+    
+    if observable
+        return (x=Observable(x), y=Observable(y), z=Observable(z), data=Observable(r_plot),
+            colorrange=Observable(colorrange),
+            x_factor=Observable(x_factor), x_prefix=Observable(x_prefix), x_label=Observable(x_label),
+            y_factor=Observable(y_factor), y_prefix=Observable(y_prefix), y_label=Observable(y_label),
+            z_factor=Observable(z_factor), z_prefix=Observable(z_prefix), z_label=Observable(z_label),
+            data_factor=Observable(r_factor), data_prefix=Observable(r_prefix), data_label=Observable(r_label),
+            ax_aspect=Observable(ax_aspect))
+    else
+        return (x=x, y=y, z=z, data=r_plot,
+            colorrange=colorrange,
+            x_factor=x_factor, x_prefix=x_prefix, x_label=x_label,
+            y_factor=y_factor, y_prefix=y_prefix, y_label=y_label,
+            z_factor=z_factor, z_prefix=z_prefix, z_label=z_label,
+            data_factor=r_factor, data_prefix=r_prefix, data_label=r_label,
+            ax_aspect=ax_aspect)
+    end
+end
+
+
+"""
+    plot_cube(grid::SpmGrid, response_channel::String,
+        x_index::GridRange, y_index::GridRange, channel_index::GridRange=nothing;
+        backward::Bool=false, ax::Any=nothing, backend::Module=Main,
+        kwargs...)::NamedTuple
+
+
+Plots a cube of `response_channel` in the three-dimensional data spanned by the x,y plane and the sweep signal.
+Indexing is done through `x_index`, `y_index` and `channel_index` and should be done such that a
+three-dimensional array is obtained.
+If `backward` is set to `true`, then data from the backward sweep is plotted if it exists.
+
+Before using this function, a [Makie](https://makie.juliaplots.org/) backend (`GLMakie`, `CairoMakie` or `WGLMakie`) should be imported
+and the figure or axis should be set up.
+A particular Axis can be specified via the `ax` keyword argument.
+By default, the Makie backend from the `Main` module is used;
+it can also be directly specified via the `backend` keyword argument.
+
+Extra keyword arguments can be specified and will be passed through to the plot function.
+
+Returns a NamedTuple containing the volume-plot, and a colorbar label.
+"""
+function plot_cube(grid::SpmGrid, response_channel::String,
+    x_index::GridRange, y_index::GridRange, channel_index::GridRange=nothing;
+    backward::Bool=false, ax::Any=nothing, backend::Module=Main,
+    kwargs...)::NamedTuple
+
+    check_makie_loaded(backend)
+
+    if ax === nothing
+        ax = backend.current_axis()
+    else
+        backend.current_axis!(ax)
+    end
+
+    data = get_data_cube(grid, response_channel, x_index, y_index, channel_index,
+        backward=backward)
+
+    ax.xlabel = data.x_label
+    ax.ylabel = data.y_label
+    ax.zlabel = data.z_label
+    ax.aspect = data.ax_aspect
+
+    vol = backend.volume!(data.x, data.y, data.z,
+        data.data, colorrange=data.colorrange,
         transparency=true, colormap=:grays;
         kwargs...)
 
-    return vol, r_label
+    return (plot=vol, data_label=data.data_label)
 end

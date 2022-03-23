@@ -3,12 +3,15 @@ module SpmGrids
 # using DataFrames
 using DataStructures: OrderedDict
 using Dates
+using Observables
 using Printf
 using TOML
 
 export load_grid, get_channel, get_parameter
-export plot_spectrum, plot_line, plot_plane, plot_cube
 export xyindex_to_point
+export plot_spectrum, plot_line, plot_plane, plot_cube
+export plot_parameter_line, plot_parameter_plane
+export interactive_display
 
 const VERSION = VersionNumber(TOML.parsefile(joinpath(@__DIR__, "../Project.toml"))["version"])
 
@@ -225,6 +228,22 @@ function get_parameter_index(grid::SpmGrid, name::AbstractString)::Int
     end
 
     return i_par
+end
+
+
+"""
+    get_parameter_unit(grid::SpmGrid, name::AbstractString)::AbstractString
+    
+Returns the unit associated with the parameter `name`.
+"""
+function get_parameter_unit(grid::SpmGrid, name::AbstractString)::String
+    if name in grid.fixed_parameter_names
+        return grid.channel_units[grid.sweep_signal]
+    elseif haskey(grid.parameter_units, name)
+        return grid.parameter_units[name]
+    else
+        return ""
+    end
 end
 
 

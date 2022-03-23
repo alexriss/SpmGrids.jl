@@ -222,4 +222,14 @@ end
     @test ax.ylabel[] == "grid y / nm"
     @test ax.zlabel[] == "Z [bwd] / nm"
     @test cb_label == "Amplitude [bwd] / pm"
+
+    # todo: plot Z-channel with colortbar (there is no span in the values)
+end
+
+@testset "plot parameter line" begin
+  # todo
+end
+
+@testset "plot parameter plane" begin
+  # todo
 end
