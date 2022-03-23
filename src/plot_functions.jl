@@ -345,46 +345,24 @@ function plot_spectrum(grid::SpmGrid, sweep_channel::String, response_channel::S
 end
 
 
-function plot_parameter_line()
-    # todo
-end
-
-
 """
-    plot_line(grid::SpmGrid, response_channel::String,
+    get_data_line(grid::SpmGrid, response_channel::String,
         x_index::GridRange, y_index::GridRange, channel_index::GridRange=nothing;
-        sweep_channel::String="", backward::Bool=true, ax::Any=nothing, backend::Module=Main,
-        kwargs...)::Nothing
+        sweep_channel::String="", backward::Bool=true, observable::Bool=false)
 
-Plots the `response_channel` along a line in the three-dimensional data spanned by x,y plane and the spectroscopy data.
+Returns the data used for a line plot of `response_channel` along a line in the three-dimensional data spanned by x,y plane and the spectroscopy data.
 Indexing is done through `x_index`, `y_index` and `channel_index` and should be done such that a
 one-dimensional array is obtained.
 It is also possible to plot `response_channel` vs `sweep_channel`
 (which defaults to the sweep signal if not specified) for one point in the grid
 If `backward` is `true` (default), the plot will include data from backward sweep as well (if they exist).
+If `observable` is set to `true`, then observables are returned.
 
-Before using this function, a [Makie](https://makie.juliaplots.org/) backend (`GLMakie`, `CairoMakie` or `WGLMakie`) should be imported
-and the figure or axis should be set up.
-A particular Axis can be specified via the `ax` keyword argument.
-By default, the Makie backend from the `Main` module is used;
-it can also be directly specified via the `backend` keyword argument.
-
-Extra keyword arguments can be specified and will be passed through to the plot function.
-Keyword arrguments with the suffix `_bwd` will be used for plotting of the backward scan.    
+Returns a NamedTuple.
 """
-function plot_line(grid::SpmGrid, response_channel::String,
+function get_data_line(grid::SpmGrid, response_channel::String,
     x_index::GridRange, y_index::GridRange, channel_index::GridRange=nothing;
-    sweep_channel::String="", backward::Bool=true, ax::Any=nothing, backend::Module=Main,
-    kwargs...)::Nothing
-
-    check_makie_loaded(backend)
-
-    if ax === nothing
-        ax = backend.current_axis()
-    else
-        backend.current_axis!(ax)
-    end
-
+    sweep_channel::String="", backward::Bool=true, observable::Bool=false)
     x_index = convert_to_range(x_index)
     y_index = convert_to_range(y_index)
     channel_index = convert_to_range(channel_index)
@@ -454,8 +432,6 @@ function plot_line(grid::SpmGrid, response_channel::String,
 
     y_factor, y_prefix = get_factor_prefix(vcat(y, y_bwd))
     y_label = axis_label(grid, response_channel, y_prefix)
-    ax.xlabel = x_label
-    ax.ylabel = y_label
 
     x = x ./ x_factor
     y = y ./ y_factor
@@ -471,15 +447,70 @@ function plot_line(grid::SpmGrid, response_channel::String,
         end
     end
 
+    if observable
+        return (x=Observable(x), y=Observable(y), x_bwd=Observable(x_bwd), y_bwd=Observable(y_bwd),
+            x_factor=Observable(x_factor), x_prefix=Observable(x_prefix), x_label=Observable(x_label),
+            y_factor=Observable(y_factor), y_prefix=Observable(y_prefix), y_label=Observable(y_label),
+            plot_label=Observable(label))
+    else
+        return (x=x, y=y, x_bwd=x_bwd, y_bwd=y_bwd,
+            x_factor=x_factor, x_prefix=x_prefix, x_label=x_label,
+            y_factor=y_factor, y_prefix=y_prefix, y_label=y_label,
+            plot_label=label)
+    end
+end
+
+
+"""
+    plot_line(grid::SpmGrid, response_channel::String,
+        x_index::GridRange, y_index::GridRange, channel_index::GridRange=nothing;
+        sweep_channel::String="", backward::Bool=true, ax::Any=nothing, backend::Module=Main,
+        kwargs...)::Nothing
+
+Plots the `response_channel` along a line in the three-dimensional data spanned by x,y plane and the spectroscopy data.
+Indexing is done through `x_index`, `y_index` and `channel_index` and should be done such that a
+one-dimensional array is obtained.
+It is also possible to plot `response_channel` vs `sweep_channel`
+(which defaults to the sweep signal if not specified) for one point in the grid
+If `backward` is `true` (default), the plot will include data from backward sweep as well (if they exist).
+
+Before using this function, a [Makie](https://makie.juliaplots.org/) backend (`GLMakie`, `CairoMakie` or `WGLMakie`) should be imported
+and the figure or axis should be set up.
+A particular Axis can be specified via the `ax` keyword argument.
+By default, the Makie backend from the `Main` module is used;
+it can also be directly specified via the `backend` keyword argument.
+
+Extra keyword arguments can be specified and will be passed through to the plot function.
+Keyword arrguments with the suffix `_bwd` will be used for plotting of the backward scan.    
+"""
+function plot_line(grid::SpmGrid, response_channel::String,
+    x_index::GridRange, y_index::GridRange, channel_index::GridRange=nothing;
+    sweep_channel::String="", backward::Bool=true, ax::Any=nothing, backend::Module=Main,
+    kwargs...)::Nothing
+
+    check_makie_loaded(backend)
+
+    if ax === nothing
+        ax = backend.current_axis()
+    else
+        backend.current_axis!(ax)
+    end
+
+    data = get_data_line(grid, response_channel, x_index, y_index, channel_index,
+        sweep_channel=sweep_channel, backward=backward)
+
+    ax.xlabel = data.x_label
+    ax.ylabel = data.y_label
+    
     kwargs_fwd = get_kwargs(kwargs)
     kwargs_bwd = get_kwargs(kwargs, backward=true)
 
-    backend.scatterlines!(x, y,
-        linewidth=2, markersize=2, color=color_spectrum_fwd, label=label;
+    backend.scatterlines!(data.x, data.y,
+        linewidth=2, markersize=2, color=color_spectrum_fwd, label=data.plot_label;
         kwargs_fwd...)
-    if backward && length(y_bwd) > 0
-        backend.scatterlines!(x_bwd, y_bwd,
-            linewidth=2, markersize=2, color=color_spectrum_bwd, label="$(label) bwd";
+    if backward && length(data.y_bwd) > 0
+        backend.scatterlines!(data.x_bwd, data.y_bwd,
+            linewidth=2, markersize=2, color=color_spectrum_bwd, label="$(data.plot_label) bwd";
             kwargs_bwd...)
     end
 

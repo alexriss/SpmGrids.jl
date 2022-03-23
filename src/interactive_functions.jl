@@ -1,19 +1,23 @@
 """
-    interactive_display(grid::SpmGrid, response_channel::String="", parameter::String="";
+    interactive_display(grid::SpmGrid, response_channel::String="", response_channel2::Stringg="", parameter::String="";
         backward::Bool=false, fig::Any=nothing, backend::Module=Main)::Any
 
 Display the grid in an interactive GUI that can be used in Pluto, Jupyter, or other interactive environments.
 `response_channel` specifies the initial choice of the response channel,
-`parameter` specifies the initial [arameter to plot.
+`response_channel2` specifies the initial choice of the response channel for the second line plot,
+`parameter` specifies the initial parameter to plot.
 
 Before using this function, a [Makie](https://makie.juliaplots.org/) backend (`GLMakie`, `CairoMakie` or `WGLMakie`)
 should be imported and the figure can be set up and passed via the `fig` keyword argument.
 """
-function interactive_display(grid::SpmGrid, response_channel::String="", parameter::String="";
+function interactive_display(grid::SpmGrid, response_channel::String="", response_channel2::String="", parameter::String="";
     backward::Bool=false, fig::Any=nothing, backend::Module=Main, kwargs...)::Any
 
     if response_channel === ""
         response_channel = grid.channel_names[1]
+    end
+    if response_channel2 === ""
+        response_channel2 = grid.channel_names[2]
     end
     if parameter === ""
         parameter = grid.experiment_parameter_names[1]
@@ -21,7 +25,7 @@ function interactive_display(grid::SpmGrid, response_channel::String="", paramet
 
     if fig === nothing
         backend.set_window_config!(title="SpmGrids")
-        fontsize_theme = backend.Theme(fontsize = 8)
+        fontsize_theme = backend.Theme(fontsize = 10)
         backend.set_theme!(fontsize_theme)
         fig = backend.Figure(resolution = (1200, 1000))
     end
@@ -42,7 +46,8 @@ function interactive_display(grid::SpmGrid, response_channel::String="", paramet
     g12 = fig[1, 2] = backend.GridLayout(valign=:top)
     g21 = fig[2, 1] = backend.GridLayout(valign=:top)
     g22 = fig[2, 2] = backend.GridLayout(valign=:top)
-    g31 = fig[3, 1] = backend.GridLayout(valign=:top)
+    g31 = fig[3, 1] = backend.GridLayout(valign=:bottom)
+    g32 = fig[3, 2] = backend.GridLayout(valign=:bottom)
     g41 = fig[4, 1] = backend.GridLayout(valign=:top)
     g42 = fig[4, 2] = backend.GridLayout(valign=:top)
 
@@ -56,6 +61,9 @@ function interactive_display(grid::SpmGrid, response_channel::String="", paramet
     menu_channel = backend.Menu(g12[1,1], options=zip(channel_names_units, channel_names),
         i_selected=findfirst(isequal(response_channel), channel_names), selection=response_channel)
     
+    menu_channel2 = backend.Menu(g32[1,1], options=zip(channel_names_units, channel_names),
+        i_selected=findfirst(isequal(response_channel2), channel_names), selection=response_channel2)
+
     lsgrid = backend.labelslidergrid!(
         fig,
         ["grid X", "grid Y", "grid Z"],
@@ -65,12 +73,18 @@ function interactive_display(grid::SpmGrid, response_channel::String="", paramet
     grid_x, grid_y, grid_z = [s.value for s in lsgrid.sliders]
 
     if backward_exists
-        label_dir = backend.Label(g12[3,1][1,1], "backward / forward", halign=:left, tellwidth=false)
+        label_dir = backend.Label(g12[3,1][1,1], "backward", halign=:left, tellwidth=false)
         toggle_forward = backend.Toggle(g12[3,1][1,2], active=!backward, halign=:left, tellwidth=false)
-        invisax = backend.Axis(g12[3,1][1,3])  # dummy axis
+        label_dir2 = backend.Label(g12[3,1][1,3], "forward", halign=:left, tellwidth=false)
+        forward = toggle_forward.active[]
+
+        invisax = backend.Axis(g12[3,1][1,4])  # dummy axis
         backend.hidespines!(invisax)
         backend.hidedecorations!(invisax)
-        forward = toggle_forward.active[]
+
+        # todo: toggle backward/forward for spectra
+        # label_dir_both = backend.Label(g12[3,1][1,5], "both in spectrum", halign=:right, tellwidth=false)
+        # toggle_dir_both = backend.Toggle(g12[3,1][1,6], active=true, halign=:right, tellwidth=false)
     else
         forward = true
     end
@@ -93,12 +107,31 @@ function interactive_display(grid::SpmGrid, response_channel::String="", paramet
     ax_plane_parameter = backend.Axis(g41[1, 1], title=data_parameter_plane.plot_label)
     plot_plane(data_parameter_plane, ax_plane_parameter, g41[1, 2], backend; kwargs...)
 
+    data_line_1 = get_data_line(grid, response_channel, grid_x[], grid_y[], :,
+        observable=true)
+    ax_line_1 = backend.Axis(g22[1, 1], title=data_line_1.plot_label, xlabel=data_line_1.x_label, ylabel=data_line_1.y_label)
+    plot_line(data_line_1, ax_line_1, backend; kwargs...)
+
+    data_line_2 = get_data_line(grid, response_channel2, grid_x[], grid_y[], :,
+        observable=true)
+    ax_line_2 = backend.Axis(g42[1, 1], title=data_line_2.plot_label, xlabel=data_line_2.x_label, ylabel=data_line_2.y_label)
+    plot_line(data_line_2, ax_line_2, backend; kwargs...)
+
     backend.on(menu_channel.selection) do s
         forward = !backward_exists || toggle_forward.active[]
         data_new = get_data_cube(grid, s, :, :, :, backward=!forward)
         set_observable_values!(data_cube, data_new)
         data_new = get_data_plane(grid, s, :, :, grid_z[], backward=!forward)
         set_observable_values!(data_plane, data_new)
+        data_new = get_data_line(grid, s, grid_x[], grid_y[], :)
+        set_observable_values!(data_line_1, data_new)
+        backend.autolimits!(ax_line_1)
+    end
+
+    backend.on(menu_channel2.selection) do s
+        data_new = get_data_line(grid, s, grid_x[], grid_y[], :)
+        set_observable_values!(data_line_2, data_new)
+        backend.autolimits!(ax_line_2)
     end
 
     if backward_exists
@@ -121,6 +154,28 @@ function interactive_display(grid::SpmGrid, response_channel::String="", paramet
         response_channel = menu_channel.selection[]
         data_new = get_data_plane(grid, response_channel, :, :, z, backward=!forward)
         set_observable_values!(data_plane, data_new)
+    end
+
+    backend.on(grid_x) do x
+        response_channel = menu_channel.selection[]
+        data_new = get_data_line(grid, response_channel, x, grid_y[], :)
+        set_observable_values!(data_line_1, data_new)
+        backend.autolimits!(ax_line_1)
+        response_channel2 = menu_channel2.selection[]
+        data_new = get_data_line(grid, response_channel2, x, grid_y[], :)
+        set_observable_values!(data_line_2, data_new)
+        backend.autolimits!(ax_line_2)
+    end
+
+    backend.on(grid_y) do y
+        response_channel = menu_channel.selection[]
+        data_new = get_data_line(grid, response_channel, grid_x[], y, :)
+        set_observable_values!(data_line_1, data_new)
+        backend.autolimits!(ax_line_1)
+        response_channel2 = menu_channel2.selection[]
+        data_new = get_data_line(grid, response_channel2, grid_x[], y, :)
+        set_observable_values!(data_line_2, data_new)
+        backend.autolimits!(ax_line_2)
     end
 
     return fig
@@ -171,6 +226,31 @@ function set_observable_values!(nt::NamedTuple, nt_vals::NamedTuple)::Nothing
     for k in keys(nt)
         setindex!(nt[k], nt_vals[k])
     end
+    return nothing
+end
+
+
+"""
+    plot_line(data::NamedTuple, ax::Any, backend::Module; backward::Bool=true, kwargs...)::Nothing
+
+Plots a line from the NamedTuple `x` vs `y` and `x_bwd` vs `y_bwd` on Axis `ax`
+"""
+function plot_line(data::NamedTuple, ax::Any, backend::Module; backward::Bool=true, kwargs...)::Nothing
+    check_makie_loaded(backend)
+    backend.current_axis!(ax)
+
+    kwargs_fwd = get_kwargs(kwargs)
+    kwargs_bwd = get_kwargs(kwargs, backward=true)
+
+    backend.scatterlines!(data.x, data.y,
+        linewidth=2, markersize=2, color=color_spectrum_fwd, label=data.plot_label;
+        kwargs_fwd...)
+    if backward && length(data.y_bwd[]) > 0
+        backend.scatterlines!(data.x_bwd, data.y_bwd,
+            linewidth=2, markersize=2, color=color_spectrum_bwd, label="$(data.plot_label) bwd";
+            kwargs_bwd...)
+    end
+
     return nothing
 end
 

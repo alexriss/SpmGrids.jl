@@ -226,10 +226,10 @@ end
     # todo: plot Z-channel with colortbar (there is no span in the values)
 end
 
-@testset "plot parameter line" begin
+@testset "plot parameter plane" begin
   # todo
 end
 
-@testset "plot parameter plane" begin
-  # todo
+@testset "interactive functions" begin
+    # todo
 end
