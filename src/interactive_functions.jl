@@ -42,6 +42,8 @@ function interactive_display(grid::SpmGrid, response_channel::String="", respons
 
     backward_exists = length(channel_names) != length(grid.channel_names)
 
+    # layout
+
     g11 = fig[1, 1] = backend.GridLayout(valign=:top)
     g12 = fig[1, 2] = backend.GridLayout(valign=:top)
     g21 = fig[2, 1] = backend.GridLayout(valign=:top)
@@ -58,6 +60,12 @@ function interactive_display(grid::SpmGrid, response_channel::String="", respons
     backend.rowsize!(fig.layout, 3, backend.Relative(0.09))
     backend.rowsize!(fig.layout, 4, backend.Relative(0.31))
 
+    # have to get this here because we need the data
+    data_cube = get_data_cube(grid, response_channel, :, :, :,
+        backward=backward, observable=true)
+
+    # widgets 
+
     menu_channel = backend.Menu(g12[1,1], options=zip(channel_names_units, channel_names),
         i_selected=findfirst(isequal(response_channel), channel_names), selection=response_channel)
     
@@ -67,10 +75,11 @@ function interactive_display(grid::SpmGrid, response_channel::String="", respons
     lsgrid = backend.labelslidergrid!(
         fig,
         ["grid X", "grid Y", "grid Z"],
-        [1:grid.pixelsize[1], 1:grid.pixelsize[2], 1:grid.points];
+        [1:grid.pixelsize[1], 1:grid.pixelsize[2], 1:length(data_cube.z[])];
         tellheight = false)
     g12[2,1] = lsgrid.layout
     grid_x, grid_y, grid_z = [s.value for s in lsgrid.sliders]
+    grid_z_start = grid_z[]
 
     if backward_exists
         label_dir = backend.Label(g12[3,1][1,1], "backward", halign=:left, tellwidth=false)
@@ -91,9 +100,9 @@ function interactive_display(grid::SpmGrid, response_channel::String="", respons
 
     menu_parameter = backend.Menu(g31[1,1], options=zip(parameter_names_units, parameter_names),
         i_selected=findfirst(isequal(parameter), parameter_names), selection=parameter)
+
+    # plots
   
-    data_cube = get_data_cube(grid, response_channel, :, :, :,
-        backward=!forward, observable=true)
     ax_cube = backend.Axis3(g11[1, 1], perspectiveness=0.5, viewmode=:fit)
     plot_cube(data_cube, ax_cube, g11[1, 2], backend; kwargs...)
 
@@ -116,6 +125,18 @@ function interactive_display(grid::SpmGrid, response_channel::String="", respons
         observable=true)
     ax_line_2 = backend.Axis(g42[1, 1], title=data_line_2.plot_label, xlabel=data_line_2.x_label, ylabel=data_line_2.y_label)
     plot_line(data_line_2, ax_line_2, backend; kwargs...)
+
+    # markers
+    rect_3d = plot_rect_3d(data_cube, grid_z_start, ax_cube, backend)
+    grid_x_pos = map(i -> data_cube.x[][i], grid_x)
+    grid_y_pos = map(i -> data_cube.y[][i], grid_y)
+    grid_z_pos = map(i -> data_cube.z[][i], grid_z)
+    vline_1 = backend.vlines!(ax_line_1, grid_z_pos, color="#60100b60", linewidth=2, linestyle = :dash)
+    vline_2 = backend.vlines!(ax_line_2, grid_z_pos, color="#60100b60", linewidth=2, linestyle = :dash)
+    vline_plane = backend.vlines!(ax_plane_channel, grid_x_pos, color="#0b106060", linewidth=2, linestyle = :dash)
+    hline_plane = backend.hlines!(ax_plane_channel, grid_y_pos, color="#0b106060", linewidth=2, linestyle = :dash)
+
+    # events
 
     backend.on(menu_channel.selection) do s
         forward = !backward_exists || toggle_forward.active[]
@@ -154,6 +175,7 @@ function interactive_display(grid::SpmGrid, response_channel::String="", respons
         response_channel = menu_channel.selection[]
         data_new = get_data_plane(grid, response_channel, :, :, z, backward=!forward)
         set_observable_values!(data_plane, data_new)
+        backend.translate!(rect_3d, 0, 0, data_cube.z[][grid_z[]] - data_cube.z[][grid_z_start])
     end
 
     backend.on(grid_x) do x
@@ -273,7 +295,8 @@ function plot_plane(data::NamedTuple, ax::Any, ax_cb::Any, backend::Module; kwar
         colorrange=data.colorrange, colormap=:grays, label=data.plot_label;
         kwargs...)
 
-    backend.Colorbar(ax_cb, hm, label=data.data_label)
+    cb  = backend.Colorbar(ax_cb, hm, label=data.data_label)
+    cb.alignmode = backend.Mixed(right = 0)
 
     return nothing
 end
@@ -295,11 +318,35 @@ function plot_cube(data::NamedTuple, ax::Any, ax_cb::Any, backend::Module; kwarg
     ax.aspect = data.ax_aspect[]
 
     vol = backend.volume!(data.x, data.y, data.z, data.data,
-        colorrange=data.colorrange, transparency=true, colormap=:grays;
+        colorrange=data.colorrange, transparency=true, colormap=:grays,
+        nan_color=backend.RGBAf(0,0,0,0);
         kwargs...)
 
-    backend.Colorbar(ax_cb, vol, label=data.data_label)
+    cb = backend.Colorbar(ax_cb, vol, label=data.data_label)
+    cb.alignmode = backend.Mixed(right = 0)
 
     return nothing
+end
+
+
+"""
+    plot_rect_3d(data::NamedTuple, grid_z, ax::Any, backend::Module)::Any
+
+Plots a rectangle around the cube plot (`cube_data`) in Axis `ax` at height corresponding to `grid_z`.
+Returns the plot.
+"""
+function plot_rect_3d(data::NamedTuple, grid_z, ax::Any, backend::Module)::Any
+    x_span = maximum(data.x[]) - minimum(data.x[])
+    y_span = maximum(data.y[]) - minimum(data.y[])
+    x_min = minimum(data.x[]) - 0.005 * x_span
+    x_width = 1.01 * x_span
+    y_min = minimum(data.y[]) - 0.005 * y_span
+    y_width = 1.01 * y_span
+    z_curr = data.z[][grid_z]
+
+    rect_3d = backend.linesegments!(ax, backend.Rect(x_min, y_min, z_curr, x_width, y_width, 0),
+        linewidth=2, color="#60100b")
+
+    return rect_3d
 end
 
