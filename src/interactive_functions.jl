@@ -1,5 +1,5 @@
 """
-    interactive_display(grid::SpmGrid, response_channel::String="", response_channel2::Stringg="", parameter::String="";
+    interactive_display(grid::SpmGrid, response_channel::String="", response_channel2::String="", parameter::String="";
         backward::Bool=false, fig::Any=nothing, backend::Module=Main)::Any
 
 Display the grid in an interactive GUI that can be used in Pluto, Jupyter, or other interactive environments.
@@ -103,7 +103,7 @@ function interactive_display(grid::SpmGrid, response_channel::String="", respons
 
     # plots
   
-    ax_cube = backend.Axis3(g11[1, 1], perspectiveness=0.5, viewmode=:fit)
+    ax_cube = backend.Axis3(g11[1, 1], zlabel=data_cube.z_label, perspectiveness=0.5, viewmode=:fit)
     plot_cube(data_cube, ax_cube, g11[1, 2], backend; kwargs...)
 
     data_plane = get_data_plane(grid, response_channel, :, :, grid_z[],
@@ -205,23 +205,25 @@ end
 
 
 """
-    interactive_display(grid::SpmGrid, response_channel::String="";
-        backward::Bool=false, fig::Any=nothing, backend::Module=Main)::Any
+    interactive_display(fname::String, response_channel::String="", response_channel2::String="", parameter::String="";
+        backward::Bool=false, fig::Any=nothing, backend::Module=Main, kwargs...)::Any
 
 Display the grid in an interactive GUI that can be used in Pluto, Jupyter, or other interactive environments.
 `response_channel` specifies the initial choice of the response channel,
+`response_channel2` specifies the initial choice of the response channel for the second line plot,
+`parameter` specifies the initial parameter to plot.
 
 Before using this function, a [Makie](https://makie.juliaplots.org/) backend (`GLMakie`, `CairoMakie` or `WGLMakie`)
 should be imported and the figure can be set up and passed via the `fig` keyword argument.
 """
-function interactive_display(fname::String, response_channel::String="";
+function interactive_display(fname::String, response_channel::String="", response_channel2::String="", parameter::String="";
     backward::Bool=false, fig::Any=nothing, backend::Module=Main, kwargs...)::Any
 
     if !(isfile(fname))
         @error "File $fname not found."
     end
     grid = load_grid(fname)
-    return interactive_display(grid, response_channel;
+    return interactive_display(grid, response_channel, response_channel2, parameter,;
         backward=backward, fig=fig, backend=backend, kwargs...)
 end
 
@@ -314,7 +316,7 @@ function plot_cube(data::NamedTuple, ax::Any, ax_cb::Any, backend::Module; kwarg
 
     ax.xlabel = data.x_label[]
     ax.ylabel = data.y_label[]
-    ax.zlabel = data.z_label[]
+    # ax.zlabel = data.z_label[] # this can change, so we have to add it as a keyword parameter when creating the axis
     ax.aspect = data.ax_aspect[]
 
     # we have to plot z_sorted and data_sorted, 
