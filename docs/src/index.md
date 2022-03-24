@@ -116,12 +116,12 @@ g2 = fig[1, 2] = GridLayout()
 ax1 = Axis(g1[1, 1])
 
 # plot the `Frequency Shift` for 120th point in the sweep
-hm1, cb_label1, label1 = plot_plane(grid, "Frequency Shift", :, :, 120,
+r1 = plot_plane(grid, "Frequency Shift", :, :, 120,
     ax=ax1, backend=CairoMakie)
-ax1.title = label1
+ax1.title = r1.plot_label
 
 # add colorbars
-Colorbar(g1[1, 2], hm1, label=cb_label1)
+Colorbar(g1[1, 2], r1.plot, label=r1.data_label)
 
 fig
 ```
@@ -132,11 +132,11 @@ ax2 = Axis(g2[1, 1])
 
 # plot `Current` values of the backward sweep
 # for 10th to 100th point in the sweep for the 15th row
-hm2, cb_label2, label2 = plot_plane(grid, "Current", :, 15, 1:100,
+r2 = plot_plane(grid, "Current", :, 15, 1:100,
     ax=ax2, backward=true, colormap=:imola, backend=CairoMakie)
-ax2.title = label2
+ax2.title = r2.plot_label
 
-Colorbar(g2[1, 2], hm2, label=cb_label2)
+Colorbar(g2[1, 2], r2.plot, label=r2.data_label)
 
 # mark 15th row in the first plot
 px, py = xyindex_to_point(grid, 1, 15)
@@ -152,16 +152,16 @@ _(Still need to figure out why the colorbars are not aligned.)_
 
 ```julia
 using SpmGrids
-using WGLMakie
+using GLMakie
 
 grid = load_grid("Bias_spectroscopy.3ds")
 
 fig = Figure(resolution = (500, 400));
 ax = Axis3(fig[1, 1], perspectiveness=0.5)
 
-vol, cb_label = plot_cube(grid, "Current", :, :, :,
-    colormap=:Spectral_11, backend=WGLMakie)
-Colorbar(fig[1,2], vol, label=cb_label)
+r = plot_cube(grid, "Current", :, :, :,
+    colormap=:Spectral_11, backend=GLMakie)
+Colorbar(fig[1,2], r.plot, label=r.data_label)
 
 fig
 ```
