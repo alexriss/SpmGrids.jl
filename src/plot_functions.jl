@@ -72,6 +72,10 @@ function get_factor_prefix(number::Float32)::Tuple{Float32, String}
     # The format function of the Formatting library supports some of the SI prefixes, but
     # 1. only down to pico, and 2. it will not convert 0.05 as 50.0m (instead as 0.0)
 
+    if number == 0.0f0  # use `==` because 0.0f0 !== -0.0f0
+        return 0.0f0, ""
+    end
+
     unit_prefix = unit_prefixes[end]
     unit_factor = unit_factors[end]
 
@@ -88,21 +92,6 @@ end
 
 
 """
-    format_with_prefix(number::Float32; delimiter::String="")::String
-
-formats a number to a notation that uses SI prefixes.
-"""
-function format_with_prefix(number::Float32; delimiter::String=" ")::String
-    if number === 0f0
-        return "0$delimiter"
-    end
-    unit_factor, unit_prefix = get_factor_prefix(number)
-    number = number / unit_factor
-    return @sprintf("%0.2f", number) * "$delimiter$unit_prefix"
-end
-
-
-"""
     function get_factor_prefix(numbers::Array{Float32})::Tuple{Float32, String}
 
 Determines the best SI unit prefix for a given array `numbers`.
@@ -114,6 +103,24 @@ function get_factor_prefix(numbers::AbstractArray{<:Float32})::Tuple{Float32, St
         return 1f0, ""
     end
     return get_factor_prefix(maximum(abs_numbers))
+end
+
+
+"""
+    format_with_prefix(number::Float32; delimiter::String="")::String
+
+formats a number to a notation that uses SI prefixes.
+"""
+function format_with_prefix(number::Float32; delimiter::String=" ")::String
+    if number === 0f0
+        return "0$delimiter"
+    end
+    if number === NaN32
+        return "$delimiter"
+    end
+    unit_factor, unit_prefix = get_factor_prefix(number)
+    number = number / unit_factor
+    return @sprintf("%0.2f", number) * "$delimiter$unit_prefix"
 end
 
 
@@ -616,14 +623,14 @@ function plot_parameter_plane(grid::SpmGrid, parameter::String,
         backend.current_axis!(ax)
     end
 
-    data = get_data_parameter_plane(grid, parameter, x_index, y_index)
+    data = get_data_parameter_plane(grid, parameter, x_index, y_index, backend=backend)
 
     ax.aspect = data.ax_aspect
     ax.xlabel = data.x_label
     ax.ylabel = data.y_label
     
     hm = backend.heatmap!(data.x, data.y, data.data,
-        colormap=:grays, label=data.plot_label; kwargs...)
+        colormap=:grays, colorrange=data.colorrange, label=data.plot_label; kwargs...)
 
     return (plot=hm, data_label=data.data_label, plot_label=data.plot_label)
 end
@@ -786,14 +793,14 @@ function plot_plane(grid::SpmGrid, response_channel::String,
     end
 
     data = get_data_plane(grid, response_channel, x_index, y_index, channel_index,
-        backward=backward)
+        backward=backward, backend=backend)
 
     ax.aspect = data.ax_aspect
     ax.xlabel = data.x_label
     ax.ylabel = data.y_label
     
     hm = backend.heatmap!(data.x, data.y, data.data,
-        colormap=:grays, colorrrange=data.colorrange, label=data.plot_label; kwargs...)
+        colormap=:grays, colorrange=data.colorrange, label=data.plot_label; kwargs...)
 
     return (plot=hm, data_label=data.data_label, plot_label=data.plot_label)
 end
@@ -867,7 +874,7 @@ function get_data_cube(grid::SpmGrid, response_channel::String,
     data_label = axis_label(grid, response_channel, data_prefix)
     data_plot = data ./ data_factor
 
-    # get rid of NaN valuies in the sweep signal
+    # get rid of NaN values in the sweep signal
     sel = findall(!isnan, z)
     z = (z ./ z_factor)[sel]
     data_plot = data_plot[:, :, sel]
@@ -876,9 +883,14 @@ function get_data_cube(grid::SpmGrid, response_channel::String,
 
     # we have to sort the z values, because toehrwise there is a bug in the volume plot
     # see https://github.com/JuliaPlots/ Makie.jl/issues/1781
-    p = sortperm(z)
-    z_sorted = z[p]
-    data_plot_sorted = data_plot[:, :, p]
+    if !issorted(z)
+        p = sortperm(z)
+        z_sorted = z[p]
+        data_plot_sorted = data_plot[:, :, p]
+    else
+        z_sorted = z
+        data_plot_sorted = data_plot
+    end
 
     colorrange = get_range(data_plot)
     
@@ -950,10 +962,14 @@ function plot_cube(grid::SpmGrid, response_channel::String,
     # we have to plot z_sorted and data_sorted, 
     # wrong plots are obntained if the axes indices are not sorted in ascending order
     # see https://github.com/JuliaPlots/Makie.jl/issues/1781
-    vol = backend.volume!(data.x, data.y, data.z_sorted,
-        data.data_sorted, colorrange=data.colorrange,
-        transparency=true, colormap=:grays;
-        kwargs...)
+    if length(data.z_sorted) === 0
+        vol = nothing
+    else
+        vol = backend.volume!(data.x, data.y, data.z_sorted,
+            data.data_sorted, colorrange=data.colorrange,
+            transparency=true, colormap=:grays;
+            kwargs...)
+    end
 
     return (plot=vol, data_label=data.data_label)
 end

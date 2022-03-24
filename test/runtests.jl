@@ -182,32 +182,100 @@ end
 
     fig = CairoMakie.Figure(resolution = (800, 400));
     ax = CairoMakie.Axis(fig[1, 1])
-    hm, cb_label, label = plot_plane(grid, "Frequency Shift", 5, :, 1:120, color_bwd="#e0e0e0")
+    r = plot_plane(grid, "Frequency Shift", 5, :, 1:120, color_bwd="#e0e0e0")
     @test ax.xlabel[] == "grid y / nm"
     @test ax.ylabel[] == "Z / nm"
-    @test cb_label == "Frequency Shift / Hz"
-    @test label == "grid x=387.10 pm"
+    @test r.data_label == "Frequency Shift / Hz"
+    @test r.plot_label == "grid x=387.10 pm"
 
     fig = CairoMakie.Figure(resolution = (800, 400));
     ax = CairoMakie.Axis(fig[1, 1])
-    hm, cb_label, label = plot_plane(grid, "Amplitude", :, 1, 1:120, backward=true)
+    r = plot_plane(grid, "Amplitude", :, 1, 1:120, backward=true)
     @test ax.xlabel[] == "grid x / nm"
     @test ax.ylabel[] == "Z [bwd] / nm"
-    @test cb_label == "Amplitude [bwd] / pm"
-    @test label == "grid y=0 m"
+    @test r.data_label == "Amplitude [bwd] / pm"
+    @test r.plot_label == "grid y=0 m"
 
     grid = load_grid("Grid Spectroscopy002.3ds")
     fig = CairoMakie.Figure(resolution = (800, 400));
     ax = CairoMakie.Axis(fig[1, 1])
-    hm, cb_label, label = plot_plane(grid, "Amplitude", :, :, 20, backward=true)
+    r = plot_plane(grid, "Amplitude", :, :, 20, backward=true)
     # this should give out two warnings, because there are no backward channels
 
-    ax.title = label
-    Colorbar(fig[1, 2], hm, label=cb_label)
+    ax.title = r.plot_label
+    Colorbar(fig[1, 2], r.plot, label=r.data_label)
     @test ax.xlabel[] == "grid x / nm"
     @test ax.ylabel[] == "grid y / nm"
-    @test cb_label == "Amplitude / pm"  # there is no bwd channel here
-    @test label == "Bias=155.12 mV"
+    @test r.data_label == "Amplitude / pm"  # there is no bwd channel here
+    @test r.plot_label == "Bias=155.12 mV"
+
+    grid = load_grid("Grid Spectroscopy006.3ds")
+    fig = CairoMakie.Figure(resolution = (800, 400));
+    ax = CairoMakie.Axis(fig[1, 1])
+    r = plot_plane(grid, "Z", :, :, 21, backward=true)  # Z is constant
+
+    ax.title = r.plot_label
+    Colorbar(fig[1, 2], r.plot, label=r.data_label)
+    @test ax.xlabel[] == "grid x / nm"
+    @test ax.ylabel[] == "grid y / nm"
+    @test r.data_label == "Z [bwd] / nm"  # there is no bwd channel here
+    @test r.plot_label == "Z=-4.53 nm"
+
+    # only NaN data
+    fig = CairoMakie.Figure(resolution = (800, 400));
+    ax = CairoMakie.Axis(fig[1, 1])
+    r = plot_plane(grid, "Z", :, 5:32, 21)  # Z is constant
+    ax.title = r.plot_label
+    Colorbar(fig[1, 2], r.plot, label=r.data_label)
+    @test ax.xlabel[] == "grid x / nm"
+    @test ax.ylabel[] == "grid y / nm"
+    @test r.data_label == "Z / m"
+    @test r.plot_label == "Z= m"
+end
+
+@testset "plot parameter plane" begin
+    grid = load_grid("Grid Spectroscopy006.3ds")
+    fig = CairoMakie.Figure(resolution = (800, 400));
+    ax = CairoMakie.Axis(fig[1, 1])
+    r = plot_parameter_plane(grid, "Z offset", :, :)
+    ax.title = r.plot_label
+    Colorbar(fig[1, 2], r.plot, label=r.data_label)
+    @test ax.xlabel[] == "grid x / nm"
+    @test ax.ylabel[] == "grid y / nm"
+    @test r.data_label == "Z offset / pm"
+    @test r.plot_label == "Z offset"
+
+    fig = CairoMakie.Figure(resolution = (800, 400));
+    ax = CairoMakie.Axis(fig[1, 1])
+    r = plot_parameter_plane(grid, "Sweep End", :, :)
+    ax.title = r.plot_label
+    Colorbar(fig[1, 2], r.plot, label=r.data_label)
+    @test ax.xlabel[] == "grid x / nm"
+    @test ax.ylabel[] == "grid y / nm"
+    @test r.data_label == "Sweep End / pm"
+    @test r.plot_label == "Sweep End"
+
+
+    fig = CairoMakie.Figure(resolution = (800, 400));
+    ax = CairoMakie.Axis(fig[1, 1])
+    r = plot_parameter_plane(grid, "Scan:Amplitude", :, :)
+    ax.title = r.plot_label
+    Colorbar(fig[1, 2], r.plot, label=r.data_label)
+    @test ax.xlabel[] == "grid x / nm"
+    @test ax.ylabel[] == "grid y / nm"
+    @test r.data_label == "Scan:Amplitude / pm"
+    @test r.plot_label == "Scan:Amplitude"
+
+    # only NaN data
+    fig = CairoMakie.Figure(resolution = (800, 400));
+    ax = CairoMakie.Axis(fig[1, 1])
+    r = plot_parameter_plane(grid, "Scan:Excitation", :, 5:32)
+    ax.title = r.plot_label
+    Colorbar(fig[1, 2], r.plot, label=r.data_label)
+    @test ax.xlabel[] == "grid x / nm"
+    @test ax.ylabel[] == "grid y / nm"
+    @test r.data_label == "Scan:Excitation / V"
+    @test r.plot_label == "Scan:Excitation"
 end
 
 @testset "plot cube" begin
@@ -215,19 +283,37 @@ end
     fig = CairoMakie.Figure(resolution = (800, 400));
     ax = CairoMakie.Axis3(fig[1, 1], perspectiveness=0.5)
 
-    vol, cb_label = plot_cube(grid, "Amplitude", :, :, :,
+    r = plot_cube(grid, "Amplitude", :, :, :,
         backward=true, colormap=:Spectral_11, backend=CairoMakie)
+    Colorbar(fig[1, 2], r.plot, label=r.data_label)
 
     @test ax.xlabel[] == "grid x / nm"
     @test ax.ylabel[] == "grid y / nm"
     @test ax.zlabel[] == "Z [bwd] / nm"
-    @test cb_label == "Amplitude [bwd] / pm"
+    @test r.data_label == "Amplitude [bwd] / pm"
 
-    # todo: plot Z-channel with colortbar (there is no span in the values)
-end
+    fig = CairoMakie.Figure(resolution = (800, 400));
+    ax = CairoMakie.Axis3(fig[1, 1], perspectiveness=0.5)
 
-@testset "plot parameter plane" begin
-  # todo
+    # Bias is constant, let's see if the plot and Colorbar work
+    r = plot_cube(grid, "Bias", :, :, :,
+        colormap=:Spectral_11, backend=CairoMakie)
+    Colorbar(fig[1, 2], r.plot, label=r.data_label)        
+
+    @test ax.xlabel[] == "grid x / nm"
+    @test ax.ylabel[] == "grid y / nm"
+    @test ax.zlabel[] == "Z / nm"
+    @test r.data_label == "Bias / V"
+
+    # Only NaNs
+    r = plot_cube(grid, "Bias", :, 5:32, :,
+        colormap=:Spectral_11, backend=CairoMakie)
+
+    @test r.plot === nothing  # nothing to plot, so no 3d plot is made, and no colorbar can be made
+    @test ax.xlabel[] == "grid x / nm"
+    @test ax.ylabel[] == "grid y / nm"
+    @test ax.zlabel[] == "Z / m"
+    @test r.data_label == "Bias / V"
 end
 
 @testset "interactive functions" begin
