@@ -317,7 +317,10 @@ function plot_cube(data::NamedTuple, ax::Any, ax_cb::Any, backend::Module; kwarg
     ax.zlabel = data.z_label[]
     ax.aspect = data.ax_aspect[]
 
-    vol = backend.volume!(data.x, data.y, data.z, data.data,
+    # we have to plot z_sorted and data_sorted, 
+    # wrong plots are obntained if the axes indices are not sorted in ascending order
+    # see https://github.com/JuliaPlots/Makie.jl/issues/1781
+    vol = backend.volume!(data.x, data.y, data.z_sorted, data.data_sorted,
         colorrange=data.colorrange, transparency=true, colormap=:grays,
         nan_color=backend.RGBAf(0,0,0,0);
         kwargs...)

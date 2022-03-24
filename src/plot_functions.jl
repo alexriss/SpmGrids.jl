@@ -377,6 +377,7 @@ function get_data_line(grid::SpmGrid, response_channel::String,
         y_bwd = get_channel(grid, "$response_channel [bwd]", x_index, y_index, channel_index)
         @assert size(y_bwd) == size(y)
     else
+        x_bwd = Float32[]
         y_bwd = Float32[]
     end
 
@@ -836,13 +837,12 @@ function get_data_cube(grid::SpmGrid, response_channel::String,
         end
     end
 
-    r = get_channel(grid, response_channel, x_index, y_index, channel_index)
+    data = get_channel(grid, response_channel, x_index, y_index, channel_index)
 
-    if !all(size(r) .> 0)
-        @error "Use indexes to obtain a three-dimensional array (e.g. of size 128,5,5). Currently, the array size is $(size(r))."
+    if !all(size(data) .> 0)
+        @error "Use indexes to obtain a three-dimensional array (e.g. of size 128,5,5). Currently, the array size is $(size(data))."
     end
 
-    nc, nx, ny = size(r)
     gridx_span = range(0, grid.size[1], length=grid.pixelsize[1])
     gridy_span = range(0, grid.size[2], length=grid.pixelsize[2])
     sweep_span = get_sweep_span(get_channel(grid, grid.sweep_signal, x_index, y_index, :))
@@ -862,35 +862,43 @@ function get_data_cube(grid::SpmGrid, response_channel::String,
     aspect_z = max(aspect_x, aspect_y)
     ax_aspect = (aspect_x, aspect_y, aspect_z)
 
-    r = @views permutedims(r, [2, 3, 1])
-    r_factor, r_prefix = get_factor_prefix(r)
-    r_label = axis_label(grid, response_channel, r_prefix)
-    r_plot = r ./ r_factor
+    data = @views permutedims(data, [2, 3, 1])
+    data_factor, data_prefix = get_factor_prefix(data)
+    data_label = axis_label(grid, response_channel, data_prefix)
+    data_plot = data ./ data_factor
 
     # get rid of NaN valuies in the sweep signal
     sel = findall(!isnan, z)
     z = (z ./ z_factor)[sel]
-    r_plot = r_plot[:, :, sel]
+    data_plot = data_plot[:, :, sel]
     x = collect(x ./ x_factor)
     y = collect(y ./ y_factor)
 
-    colorrange = get_range(r_plot)
+    # we have to sort the z values, because toehrwise there is a bug in the volume plot
+    # see https://github.com/JuliaPlots/ Makie.jl/issues/1781
+    p = sortperm(z)
+    z_sorted = z[p]
+    data_plot_sorted = data_plot[:, :, p]
+
+    colorrange = get_range(data_plot)
     
     if observable
-        return (x=Observable(x), y=Observable(y), z=Observable(z), data=Observable(r_plot),
+        return (x=Observable(x), y=Observable(y), z=Observable(z), data=Observable(data_plot),
+            z_sorted=Observable(z_sorted), data_sorted=Observable(data_plot_sorted),
             colorrange=Observable(colorrange),
             x_factor=Observable(x_factor), x_prefix=Observable(x_prefix), x_label=Observable(x_label),
             y_factor=Observable(y_factor), y_prefix=Observable(y_prefix), y_label=Observable(y_label),
             z_factor=Observable(z_factor), z_prefix=Observable(z_prefix), z_label=Observable(z_label),
-            data_factor=Observable(r_factor), data_prefix=Observable(r_prefix), data_label=Observable(r_label),
+            data_factor=Observable(data_factor), data_prefix=Observable(data_prefix), data_label=Observable(data_label),
             ax_aspect=Observable(ax_aspect))
     else
-        return (x=x, y=y, z=z, data=r_plot,
+        return (x=x, y=y, z=z, data=data_plot,
+            z_sorted=z_sorted, data_sorted=data_plot_sorted,
             colorrange=colorrange,
             x_factor=x_factor, x_prefix=x_prefix, x_label=x_label,
             y_factor=y_factor, y_prefix=y_prefix, y_label=y_label,
             z_factor=z_factor, z_prefix=z_prefix, z_label=z_label,
-            data_factor=r_factor, data_prefix=r_prefix, data_label=r_label,
+            data_factor=data_factor, data_prefix=data_prefix, data_label=data_label,
             ax_aspect=ax_aspect)
     end
 end
@@ -939,8 +947,11 @@ function plot_cube(grid::SpmGrid, response_channel::String,
     ax.zlabel = data.z_label
     ax.aspect = data.ax_aspect
 
-    vol = backend.volume!(data.x, data.y, data.z,
-        data.data, colorrange=data.colorrange,
+    # we have to plot z_sorted and data_sorted, 
+    # wrong plots are obntained if the axes indices are not sorted in ascending order
+    # see https://github.com/JuliaPlots/Makie.jl/issues/1781
+    vol = backend.volume!(data.x, data.y, data.z_sorted,
+        data.data_sorted, colorrange=data.colorrange,
         transparency=true, colormap=:grays;
         kwargs...)
 
