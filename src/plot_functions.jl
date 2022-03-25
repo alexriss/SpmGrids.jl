@@ -281,9 +281,9 @@ function plot_spectrum(grid::SpmGrid, sweep_channel::String, response_channel::S
 
     @assert size(x) == size(y)
 
-    if "$sweep_channel [bwd]" in grid.channel_names &&  "$response_channel [bwd]" in grid.channel_names
-        x_bwd = get_channel(grid, "$sweep_channel [bwd]", x_index, y_index, channel_index)
-        y_bwd = get_channel(grid, "$response_channel [bwd]", x_index, y_index, channel_index)
+    if has_channel(grid, sweep_channel, backward=true) && has_channel(grid, response_channel, backward=true)
+        x_bwd = get_channel(grid, channel_name_backward(sweep_channel), x_index, y_index, channel_index)
+        y_bwd = get_channel(grid, channel_name_backward(response_channel), x_index, y_index, channel_index)
         @assert size(x) == size(x_bwd) == size(y_bwd)
     else
         x_bwd = Float32[]
@@ -377,11 +377,11 @@ function get_data_line(grid::SpmGrid, response_channel::String,
     y = get_channel(grid, response_channel, x_index, y_index, channel_index)
 
     if count(isequal(1), size(y)) < 2 || !all(size(y) .> 0)
-        @error "Use indexes to obtain a one-dimensional array (e.g. of size 128,1,1). Currently, the array size is $(size(y))."
+        throw(ArgumentError("Use indexes to obtain a one-dimensional array (e.g. of size 128,1,1). Currently, the array size is $(size(y))."))
     end
 
-    if "$response_channel [bwd]" in grid.channel_names
-        y_bwd = get_channel(grid, "$response_channel [bwd]", x_index, y_index, channel_index)
+    if has_channel(grid, response_channel, backward=true)
+        y_bwd = get_channel(grid, channel_name_backward(response_channel), x_index, y_index, channel_index)
         @assert size(y_bwd) == size(y)
     else
         x_bwd = Float32[]
@@ -422,7 +422,7 @@ function get_data_line(grid::SpmGrid, response_channel::String,
         end
         x = get_channel(grid, sweep_channel, x_index[], y_index[], channel_index)
         if length(y_bwd) > 0
-            sweep_channel_bwd = sweep_channel * " [bwd]"
+            sweep_channel_bwd = channel_name_backward(sweep_channel)
             if sweep_channel in grid.channel_names
                 x_bwd = get_channel(grid, sweep_channel_bwd, x_index[], y_index[], channel_index)
             else
@@ -550,7 +550,7 @@ function get_data_parameter_plane(grid::SpmGrid, parameter::String,
     z = get_parameter(grid, parameter, x_index, y_index)
 
     if !all(size(z) .> 0)
-        @error "Use indexes to obtain a two-dimensional array (e.g. of size 128,128). Currently, the array size is $(size(z))."
+        throw(ArgumentError("Use indexes to obtain a two-dimensional array (e.g. of size 128,128). Currently, the array size is $(size(z))."))
     end
 
     gridx_span = range(0, grid.size[1], length=grid.pixelsize[1])
@@ -664,13 +664,13 @@ function get_data_plane(grid::SpmGrid, response_channel::String,
     channel_index = convert_to_range(channel_index)
 
     if backward
-        if "$response_channel [bwd]" in grid.channel_names
-            response_channel = response_channel * " [bwd]"
+        if has_channel(grid, response_channel, backward=true)
+            response_channel = channel_name_backward(response_channel)
         else
             @warn """No backward sweep data for channel "$response_channel"."""
         end
-        if "$sweep_channel [bwd]" in grid.channel_names
-            sweep_channel = sweep_channel * " [bwd]"
+        if has_channel(grid, sweep_channel, backward=true)
+            sweep_channel = channel_name_backward(sweep_channel)
         else
             @warn """No backward sweep data for channel "$sweep_channel"."""
         end
@@ -679,7 +679,7 @@ function get_data_plane(grid::SpmGrid, response_channel::String,
     z = get_channel(grid, response_channel, x_index, y_index, channel_index)
 
     if count(isequal(1), size(z)) < 1 || !all(size(z) .> 0)
-        @error "Use indexes to obtain a two-dimensional array (e.g. of size 128,1,5). Currently, the array size is $(size(z))."
+        throw(ArgumentError("Use indexes to obtain a two-dimensional array (e.g. of size 128,1,5). Currently, the array size is $(size(z))."))
     end
 
     nc, nx, ny = size(z)
@@ -832,13 +832,13 @@ function get_data_cube(grid::SpmGrid, response_channel::String,
     channel_index = convert_to_range(channel_index)
 
     if backward
-        if "$response_channel [bwd]" in grid.channel_names
-            response_channel = response_channel * " [bwd]"
+        if has_channel(grid, response_channel, backward=true)
+            response_channel = channel_name_backward(response_channel)
         else
             @warn """No backward sweep data for channel "$response_channel"."""
         end
-        if "$sweep_channel [bwd]" in grid.channel_names
-            sweep_channel = sweep_channel * " [bwd]"
+        if has_channel(grid, sweep_channel, backward=true)
+            sweep_channel = channel_name_backward(sweep_channel)
         else
             @warn """No backward sweep data for channel "$sweep_channel"."""
         end
@@ -847,7 +847,7 @@ function get_data_cube(grid::SpmGrid, response_channel::String,
     data = get_channel(grid, response_channel, x_index, y_index, channel_index)
 
     if !all(size(data) .> 0)
-        @error "Use indexes to obtain a three-dimensional array (e.g. of size 128,5,5). Currently, the array size is $(size(data))."
+        throw(ArgumentError("Use indexes to obtain a three-dimensional array (e.g. of size 128,5,5). Currently, the array size is $(size(data))."))
     end
 
     gridx_span = range(0, grid.size[1], length=grid.pixelsize[1])

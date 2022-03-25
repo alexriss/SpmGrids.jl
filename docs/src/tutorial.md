@@ -12,6 +12,9 @@ grid.size, grid.size_unit, grid.center, grid.angle, grid.pixelsize  # grid param
 grid.start_time, grid.end_time  # more parameters
 grid.header  # even more parameters
 
+x = get_channel(grid, "Current");  # `Current` channel for the whole grid
+x = get_channel(grid, "Current [bwd]");  # `Current` channel (backwards)
+x = get_channel(grid, "Current", backward=true);  # `Current` channel (backwards)
 x = get_channel(grid, "Current", 5, 5);  # `Current` channel at point 5,5
 x = get_channel(grid, "Current", :, 5);  # `Current` channel for 5th row
 #  20th point of `Current` channel for 5th row

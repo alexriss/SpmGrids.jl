@@ -30,17 +30,17 @@ function interactive_display(grid::SpmGrid, response_channel::String="", respons
         fig = backend.Figure(resolution = (1200, 1000))
     end
 
-    channel_names = filter(!endswith(" [bwd]"), vcat(grid.channel_names, grid.generated_channel_names))
-    channel_names_units = map(channel_names) do c
+    all_channel_names = channel_names(grid)
+    channel_names_units = map(all_channel_names) do c
         c * " ($(grid.channel_units[c]))"
     end
 
-    parameter_names = vcat(grid.fixed_parameter_names, grid.experiment_parameter_names, grid.generated_parameter_names)
-    parameter_names_units = map(parameter_names) do p
+    all_parameter_names = parameter_names(grid)
+    parameter_names_units = map(all_parameter_names) do p
         p * " ($(get_parameter_unit(grid, p)))"
     end
 
-    backward_exists = length(channel_names) != length(grid.channel_names)
+    backward_exists = length(all_channel_names) != length(grid.channel_names)
 
     # layout
 
@@ -66,11 +66,11 @@ function interactive_display(grid::SpmGrid, response_channel::String="", respons
 
     # widgets 
 
-    menu_channel = backend.Menu(g12[1,1], options=zip(channel_names_units, channel_names),
-        i_selected=findfirst(isequal(response_channel), channel_names), selection=response_channel)
+    menu_channel = backend.Menu(g12[1,1], options=zip(channel_names_units, all_channel_names),
+        i_selected=findfirst(isequal(response_channel), all_channel_names), selection=response_channel)
     
-    menu_channel2 = backend.Menu(g32[1,1], options=zip(channel_names_units, channel_names),
-        i_selected=findfirst(isequal(response_channel2), channel_names), selection=response_channel2)
+    menu_channel2 = backend.Menu(g32[1,1], options=zip(channel_names_units, all_channel_names),
+        i_selected=findfirst(isequal(response_channel2), all_channel_names), selection=response_channel2)
 
     lsgrid = backend.labelslidergrid!(
         fig,
@@ -98,8 +98,8 @@ function interactive_display(grid::SpmGrid, response_channel::String="", respons
         forward = true
     end
 
-    menu_parameter = backend.Menu(g31[1,1], options=zip(parameter_names_units, parameter_names),
-        i_selected=findfirst(isequal(parameter), parameter_names), selection=parameter)
+    menu_parameter = backend.Menu(g31[1,1], options=zip(parameter_names_units, all_parameter_names),
+        i_selected=findfirst(isequal(parameter), all_parameter_names), selection=parameter)
 
     # plots
   
@@ -220,7 +220,7 @@ function interactive_display(fname::String, response_channel::String="", respons
     backward::Bool=false, fig::Any=nothing, backend::Module=Main, kwargs...)::Any
 
     if !(isfile(fname))
-        @error "File $fname not found."
+        throw(ArgumentError("File $fname not found."))
     end
     grid = load_grid(fname)
     return interactive_display(grid, response_channel, response_channel2, parameter,;

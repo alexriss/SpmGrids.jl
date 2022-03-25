@@ -4,6 +4,8 @@ using GLMakie
 using SpmGrids
 using Test
 
+skipnan = SpmGrids.skipnan
+
 @testset "load data" begin
     grid = load_grid("Grid Spectroscopy002.3ds", header_only=true)
 
@@ -49,10 +51,156 @@ using Test
     @test size(get_channel(grid, "Frequency Shift", 4:20, 5:7, 20:23)) == (4,17,3)
     @test get_channel(grid, "Bias", 20, 7, 20)[] ≈ 0.15511811f0
     @test all(get_parameter(grid, "Z offset", 3, :) .≈ 0.0)
-    @test get_parameter(grid, "Z", 3, 5) ≈ -1.1132063f-8
+    @test get_parameter(grid, "Z", 3, 5)[] ≈ -1.1132063f-8
     @test get_channel(grid, "Current", 20, 7, 20:24) ≈ Float32[1.3028699f-10, 1.2868269f-10, 1.2712124f-10, 1.2609777f-10, 1.2497206f-10]
 
+    @test has_parameter(grid, "Z offset")
+    @test has_parameter(grid, "Sweep End")
+    @test has_parameter(grid, "Sweep En") == false
+    @test has_channel(grid, "Current")
+    @test has_channel(grid, "Z")
+    @test has_channel(grid, "Current", backward=true) == false
+    @test has_channel(grid, "Curren", backward=true) == false
+    @test has_channel(grid, "Curren") == false
+    @test has_channel(grid, "Current [bwd]") == false
+
+    logs, value = Test.collect_test_logs() do
+        get_channel(grid, "Bias", backward=true)
+    end
+    @test occursin("Using forward", logs[1].message)
+
     @test all(xyindex_to_point(grid, 1, 10) .≈ (0, 7.105263f-9))
+
+    grid = load_grid("Grid Spectroscopy006.3ds")
+    @test has_parameter(grid, "Z offset")
+    @test has_parameter(grid, "Sweep End")
+    @test has_parameter(grid, "Sweep En") == false
+    @test has_channel(grid, "Current")
+    @test has_channel(grid, "Z")
+    @test has_channel(grid, "Current", backward=true)
+    @test has_channel(grid, "Curren", backward=true) == false
+    @test has_channel(grid, "Current [bwd]")
+    @test has_channel(grid, "Current [bwd]", backward=true)
+
+    err = nothing
+    try
+        get_channel(grid, "Bias2")
+    catch err
+    end
+    @test err isa Exception
+    @test contains(sprint(showerror, err), "not found")
+
+    err = nothing
+    try
+        get_parameter(grid, "Bias2")
+    catch err
+    end
+    @test err isa Exception
+    @test contains(sprint(showerror, err), "not found")
+
+end
+
+@testset "add data" begin
+    grid = load_grid("Grid Spectroscopy006.3ds")
+
+    err = nothing
+    try
+        add_channel!(grid, "Bias2", "", Float32[])
+    catch err
+    end
+    @test err isa Exception
+    @test contains(sprint(showerror, err), "needs to be of size")
+
+    err = nothing
+    try
+        add_channel!(grid, "Bias", "", get_channel(grid, "Bias"))
+    catch err
+    end
+    @test err isa Exception
+    @test contains(sprint(showerror, err), "already exists")
+    @test contains(sprint(showerror, err), "Please")  # be polite
+
+    err = nothing
+    try
+        add_channel!(grid, "", "", get_channel(grid, "Bias"))
+    catch err
+    end
+    @test err isa Exception
+    @test contains(sprint(showerror, err), "specify a channel name")
+    @test contains(sprint(showerror, err), "Please")  # be polite
+
+    add_channel!(x -> abs.(x), grid, "CurrentAbs", "A", "Current", skip_backward=true)
+    add_channel!(x -> abs.(x), grid, "CurrentAbs", "A", "Current", skip_backward=true)  # this overwrites the previous
+    add_channel!((x,y) -> x + y, grid, "CurrentSum", "A", "Current", "CurrentAbs", skip_backward=true)
+
+    @test length(grid.generated_channels) == 2
+    @test skipnan(get_channel(grid, "CurrentAbs")) == skipnan(abs.(get_channel(grid, "Current")))
+    @test get_channel(grid, "CurrentSum", 1, 2, 20) ≈
+        get_channel(grid, "CurrentAbs", 1, 2, 20) + get_channel(grid, "Current", 1, 2, 20)
+    @test all(skipnan(get_channel(grid, "CurrentSum", 1:10, 2, 20)) .== 
+        skipnan((get_channel(grid, "CurrentAbs", 1:10, 2, 20) + get_channel(grid, "Current", 1:10, 2, 20))))
+    @test all(skipnan(get_channel(grid, "CurrentSum", 1:10, :, 1:20)) .==
+        skipnan(get_channel(grid, "CurrentAbs", 1:10, :, 1:20) + get_channel(grid, "Current", 1:10, :, 1:20)))
+
+
+    # should do backward channels too
+    add_channel!(x -> abs.(x), grid, "CurrentAbs", "A", "Current")
+    add_channel!(x -> abs.(x), grid, "CurrentAbs", "A", "Current")  # this overwrites the previous
+    add_channel!((x,y) -> x + y, grid, "CurrentSum", "A", "Current", "CurrentAbs")
+    @test length(grid.generated_channels) == 4
+    @test skipnan(get_channel(grid, "CurrentAbs")) == skipnan(abs.(get_channel(grid, "Current")))
+    @test get_channel(grid, "CurrentSum", 1, 2, 20) ≈
+        get_channel(grid, "CurrentAbs", 1, 2, 20) + get_channel(grid, "Current", 1, 2, 20)
+    @test all(get_channel(grid, "CurrentSum", 1:10, 2, 20) .== 
+        get_channel(grid, "CurrentAbs", 1:10, 2, 20) + get_channel(grid, "Current", 1:10, 2, 20))
+    @test all(skipnan(get_channel(grid, "CurrentSum", 1:10, :, 1:20)) .==
+        skipnan(get_channel(grid, "CurrentAbs", 1:10, :, 1:20) + get_channel(grid, "Current", 1:10, :, 1:20)))
+    @test skipnan(get_channel(grid, "CurrentAbs [bwd]")) == skipnan(abs.(get_channel(grid, "Current [bwd]")))
+    @test get_channel(grid, "CurrentSum [bwd]", 1, 2, 20) ≈
+        get_channel(grid, "CurrentAbs [bwd]", 1, 2, 20) + get_channel(grid, "Current [bwd]", 1, 2, 20)
+    @test all(skipnan(get_channel(grid, "CurrentSum", 1:10, 2, 20)) .== 
+        skipnan(get_channel(grid, "CurrentAbs [bwd]", 1:10, 2, 20) + get_channel(grid, "Current [bwd]", 1:10, 2, 20)))
+    @test all(skipnan(get_channel(grid, "CurrentSum [bwd]", 1:10, :, 1:20)).==
+        skipnan(get_channel(grid, "CurrentAbs [bwd]", 1:10, :, 1:20) + get_channel(grid, "Current [bwd]", 1:10, :, 1:20)))
+    
+        
+    err = nothing
+    try
+        add_parameter!(grid, "Bias2", "", Float32[])
+    catch err
+    end
+    @test err isa Exception
+    @test contains(sprint(showerror, err), "needs to be of size")
+
+    err = nothing
+    try
+        add_parameter!(grid, "Sweep Start", "", get_parameter(grid, "Sweep Start"))
+    catch err
+    end
+    @test err isa Exception
+    @test contains(sprint(showerror, err), "already exists")
+    @test contains(sprint(showerror, err), "Please")  # be polite
+
+    err = nothing
+    try
+        add_parameter!(grid, "", "", get_parameter(grid, "Sweep Start"))
+    catch err
+    end
+    @test err isa Exception
+    @test contains(sprint(showerror, err), "specify a parameter name")
+    @test contains(sprint(showerror, err), "Please")  # be polite
+
+    add_parameter!((x,y) -> y-x, grid, "Sweep Diff", "", "Sweep Start", "Sweep End")
+    add_parameter!((x,y) -> y-x, grid, "Sweep Diff", "", "Sweep Start", "Sweep End")  # this overwrites the previous
+    add_parameter!((x,y) -> x+y, grid, "WeirdOne", "", "Sweep Diff", "Scan:Excitation")
+
+    @test length(grid.generated_parameters) == 2
+    @test get_parameter(grid, "Sweep Diff", 1, 2) ≈
+        get_parameter(grid, "Sweep End", 1, 2) - get_parameter(grid, "Sweep Start", 1, 2)
+    @test skipnan(get_parameter(grid, "Sweep Diff")) ==
+        skipnan(get_parameter(grid, "Sweep End") - get_parameter(grid, "Sweep Start"))
+    @test skipnan(get_parameter(grid, "WeirdOne")) ==
+        skipnan(get_parameter(grid, "Sweep Diff") + get_parameter(grid, "Scan:Excitation"))
 end
 
 
@@ -376,7 +524,11 @@ end
 
 
 
-    f = interactive_display("Grid Spectroscopy006.3ds", "Frequency Shift", "Current", "Sweep Start",
+    grid = load_grid("Grid Spectroscopy006.3ds")
+    add_channel!(x-> abs.(x), grid, "AbsCurrent", "A", "Current")
+    add_channel!(x-> abs.(x), grid, "AbsBias", "V", "Bias", skip_backward=true)
+
+    f = interactive_display(grid, "Frequency Shift", "Current", "Sweep Start",
         backward=true, backend=GLMakie, colormap=:lajolla)
 
     @test content(f[1,1][1,1]).xlabel[] == "grid x / nm"  # cube
