@@ -596,7 +596,7 @@ end
     @test content(f[4,2][1,1]).title[] == "grid x=774.19 pm, grid y=483.87 pm"
 
     # check generated channels and parameters
-    @test occursin(content("not available for all", f[1,2][3,1][1,5]).text[])  # some generated channels dont have backwards data
+    @test occursin("not available for all", content(f[1,2][3,1][1,5]).text[])  # some generated channels dont have backwards data
     content(f[1,2][1,1]).selection[] = "AbsBias"
     content(f[1,2][3,1][1,2]).active = false
     content(f[3,2][1,1]).selection[] = "AbsCurrent"
