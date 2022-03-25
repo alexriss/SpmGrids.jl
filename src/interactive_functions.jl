@@ -40,7 +40,8 @@ function interactive_display(grid::SpmGrid, response_channel::String="", respons
         p * " ($(get_parameter_unit(grid, p)))"
     end
 
-    backward_exists = length(all_channel_names) != length(grid.channel_names)
+    backward_exists = length(all_channel_names) != length(channel_names(grid, skip_backward=false))
+    backward_exists_for_all = length(all_channel_names) == length(channel_names(grid, skip_backward=false)) ÷ 2
 
     # layout
 
@@ -91,6 +92,9 @@ function interactive_display(grid::SpmGrid, response_channel::String="", respons
         backend.hidespines!(invisax)
         backend.hidedecorations!(invisax)
 
+        label_dir3_str = backward_exists_for_all ? "" : "(not available for all)"
+        label_dir3 = backend.Label(g12[3,1][1,5], label_dir3_str, halign=:left, tellwidth=false, color="#a0a0a0")
+        
         # todo: toggle backward/forward for spectra
         # label_dir_both = backend.Label(g12[3,1][1,5], "both in spectrum", halign=:right, tellwidth=false)
         # toggle_dir_both = backend.Toggle(g12[3,1][1,6], active=true, halign=:right, tellwidth=false)
@@ -139,7 +143,8 @@ function interactive_display(grid::SpmGrid, response_channel::String="", respons
     # events
 
     backend.on(menu_channel.selection) do s
-        forward = !backward_exists || toggle_forward.active[]
+        forward = !backward_exists || toggle_forward.active[] ||
+            !has_channel(grid, channel_name_backward(s))
         data_new = get_data_cube(grid, s, :, :, :, backward=!forward)
         set_observable_values!(data_cube, data_new)
         data_new = get_data_plane(grid, s, :, :, grid_z[], backward=!forward)
@@ -158,6 +163,7 @@ function interactive_display(grid::SpmGrid, response_channel::String="", respons
     if backward_exists
         backend.on(toggle_forward.active) do s
             response_channel = menu_channel.selection[]
+            s = s || !backward_exists || !has_channel(grid, channel_name_backward(response_channel))
             data_new = get_data_cube(grid, response_channel, :, :, :, backward=!s)
             set_observable_values!(data_cube, data_new)
             data_new = get_data_plane(grid, response_channel, :, :, grid_z[], backward=!s)
@@ -171,8 +177,9 @@ function interactive_display(grid::SpmGrid, response_channel::String="", respons
     end
 
     backend.on(grid_z) do z
-        forward = !backward_exists || toggle_forward.active[]
         response_channel = menu_channel.selection[]
+        forward = !backward_exists || toggle_forward.active[] ||
+            !has_channel(grid, channel_name_backward(response_channel))
         data_new = get_data_plane(grid, response_channel, :, :, z, backward=!forward)
         set_observable_values!(data_plane, data_new)
         backend.translate!(rect_3d, 0, 0, data_cube.z[][grid_z[]] - data_cube.z[][grid_z_start])
@@ -242,13 +249,13 @@ end
 
 
 """
-    set_observable_values!(nt::NamedTuple, nt_vals::NamedTuple)::Nothing
+    set_observable_values!(nt::NamedTuple, nt_new::NamedTuple)::Nothing
 
-Sets the Observables in `nt` to the values provided in `nt_vals`.
+Sets the Observables in `nt` to the values provided in `nt_new`.
 """
-function set_observable_values!(nt::NamedTuple, nt_vals::NamedTuple)::Nothing
+function set_observable_values!(nt::NamedTuple, nt_new::NamedTuple)::Nothing
     for k in keys(nt)
-        setindex!(nt[k], nt_vals[k])
+        setindex!(nt[k], nt_new[k])
     end
     return nothing
 end
@@ -266,14 +273,13 @@ function plot_line(data::NamedTuple, ax::Any, backend::Module; backward::Bool=tr
     kwargs_fwd = get_kwargs(kwargs)
     kwargs_bwd = get_kwargs(kwargs, backward=true)
 
-    backend.scatterlines!(data.x, data.y,
+    backend.scatterlines!(data.xy,
         linewidth=2, markersize=2, color=color_spectrum_fwd, label=data.plot_label;
         kwargs_fwd...)
-    if backward && length(data.y_bwd[]) > 0
-        backend.scatterlines!(data.x_bwd, data.y_bwd,
-            linewidth=2, markersize=2, color=color_spectrum_bwd, label="$(data.plot_label) bwd";
-            kwargs_bwd...)
-    end
+    # always plot backwards - in case only some channels have backward data
+    backend.scatterlines!(data.xy_bwd,
+        linewidth=2, markersize=2, color=color_spectrum_bwd, label="$(data.plot_label) bwd";
+        kwargs_bwd...)
 
     return nothing
 end

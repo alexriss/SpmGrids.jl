@@ -144,8 +144,8 @@ end
 
 
     # should do backward channels too
-    add_channel!(x -> abs.(x), grid, "CurrentAbs", "A", "Current")
-    add_channel!(x -> abs.(x), grid, "CurrentAbs", "A", "Current")  # this overwrites the previous
+    add_channel!(x -> abs(x), grid, "CurrentAbs", "A", "Current")
+    add_channel!(x -> abs(x), grid, "CurrentAbs", "A", "Current")  # this overwrites the previous
     add_channel!((x,y) -> x + y, grid, "CurrentSum", "A", "Current", "CurrentAbs")
     @test length(grid.generated_channels) == 4
     @test skipnan(get_channel(grid, "CurrentAbs")) == skipnan(abs.(get_channel(grid, "Current")))
@@ -348,8 +348,13 @@ end
     grid = load_grid("Grid Spectroscopy002.3ds")
     fig = CairoMakie.Figure(resolution = (800, 400));
     ax = CairoMakie.Axis(fig[1, 1])
-    r = plot_plane(grid, "Amplitude", :, :, 20, backward=true)
+
     # this should give out two warnings, because there are no backward channels
+    logs, value = Test.collect_test_logs() do
+        r = plot_plane(grid, "Amplitude", :, :, 20, backward=true)
+    end
+    @test occursin("No backward sweep data", logs[1].message)
+    @test occursin("No backward sweep data", logs[2].message)
 
     ax.title = r.plot_label
     Colorbar(fig[1, 2], r.plot, label=r.data_label)
@@ -382,7 +387,7 @@ end
     @test r.plot_label == "Z= m"
 end
 
-@testset "plot parameter plane" begin
+@testset "plot par plane" begin
     grid = load_grid("Grid Spectroscopy006.3ds")
     fig = CairoMakie.Figure(resolution = (800, 400));
     ax = CairoMakie.Axis(fig[1, 1])
@@ -465,7 +470,7 @@ end
     @test r.data_label == "Bias / V"
 end
 
-@testset "interactive functions" begin
+@testset "interactive" begin
     f = interactive_display("Grid Spectroscopy002.3ds", backend=GLMakie, colormap=:lajolla)
 
     @test content(f[1,1][1,1]).xlabel[] == "grid x / nm"  # cube
@@ -525,8 +530,9 @@ end
 
 
     grid = load_grid("Grid Spectroscopy006.3ds")
-    add_channel!(x-> abs.(x), grid, "AbsCurrent", "A", "Current")
-    add_channel!(x-> abs.(x), grid, "AbsBias", "V", "Bias", skip_backward=true)
+    add_channel!(x -> abs(x), grid, "AbsCurrent", "A", "Current", skip_backward=true)
+    add_channel!(x -> abs(x), grid, "AbsBias", "V", "Bias")
+    add_parameter!(x -> abs(x), grid, "AbsExcitation", "V", "Scan:Excitation")
 
     f = interactive_display(grid, "Frequency Shift", "Current", "Sweep Start",
         backward=true, backend=GLMakie, colormap=:lajolla)
@@ -588,4 +594,25 @@ end
     @test content(f[4,2][1,1]).xlabel[] == "Z / m"  #  plot 2
     @test content(f[4,2][1,1]).ylabel[] == "Excitation / V"
     @test content(f[4,2][1,1]).title[] == "grid x=774.19 pm, grid y=483.87 pm"
+
+    # check generated channels and parameters
+    @test occursin(content("not available for all", f[1,2][3,1][1,5]).text[])  # some generated channels dont have backwards data
+    content(f[1,2][1,1]).selection[] = "AbsBias"
+    content(f[1,2][3,1][1,2]).active = false
+    content(f[3,2][1,1]).selection[] = "AbsCurrent"
+    content(f[3,1][1,1]).selection[] = "AbsExcitation"
+    content(f[3,2][1,1]).selection[] = "AbsCurrent"  # changes length of xy_bwd values
+
+    @test content(f[1,1][1,1]).zlabel[] == "Z [bwd] / nm"
+    @test content(f[1,1][1,2]).limits[] == (-0.01f0, 0.01f0)  # cube colorbar
+    @test content(f[1,1][1,2]).label[] == "AbsBias [bwd] / V"
+    @test content(f[2,1][1,1]).title[] == "Z=-4.82 nm"
+    @test content(f[2,1][1,2]).limits[] == (-0.01f0, 0.01f0)   # plane colorbar
+    @test content(f[2,1][1,2]).label[] == "AbsBias [bwd] / V"
+    @test content(f[4,1][1,2]).limits[] == (0.0265926f0, 47.17634f0) # par plane colorbar
+    @test content(f[4,1][1,2]).label[] == "AbsExcitation / mV"
+    @test content(f[2,2][1,1]).xlabel[] == "Z / m"  #  plot 1
+    @test content(f[2,2][1,1]).ylabel[] == "AbsBias / V"
+    @test content(f[4,2][1,1]).xlabel[] == "Z / m"  #  plot 2
+    @test content(f[4,2][1,1]).ylabel[] == "AbsCurrent / A"
 end

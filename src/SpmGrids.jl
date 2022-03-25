@@ -3,6 +3,7 @@ module SpmGrids
 # using DataFrames
 using DataStructures: OrderedDict
 using Dates
+using GeometryBasics
 using Observables
 using Printf
 using TOML
@@ -325,7 +326,7 @@ If `skip_backward` is `false` (default), then backward channels will be added if
 # Examples
 ```julia
 julia> grid = load_grid("file.3ds")
-julia> add_channel!(x -> abs.(x), grid, "CurrentAbs", "A", "Current")
+julia> add_channel!(x -> abs(x), grid, "CurrentAbs", "A", "Current")
 julia> add_channel!((x,y) -> x + y, grid, "", "A", "Current", "AbsCurrent")
 ```
 """
@@ -333,13 +334,13 @@ function add_channel!(func::Function, grid::SpmGrid, name::AbstractString, unit:
     args...; skip_backward::Bool=false)::Nothing
 
     channels = get_channel.((grid, ), args)
-    data = func(channels...)
+    data = @. func(channels...)
     add_channel!(grid, name, unit, data)
 
     if !skip_backward
         if all(has_channel.((grid, ), args, backward=true))
             channels = get_channel.((grid, ), args, backward=true)
-            data = func(channels...)
+            data = @. func(channels...)
             add_channel!(grid, channel_name_backward(name), unit, data)
         end
     end
@@ -462,14 +463,14 @@ If the `name` exists in the generated parameter names, it will be overwritten.
 # Examples
 ```julia
 julia> grid = load_grid("file.3ds")
-julia> add_parameter!(x -> abs.(x), grid, "Scan:ExcitationAbs", "V", "Scan:Excitation")
+julia> add_parameter!(x -> abs(x), grid, "Scan:ExcitationAbs", "V", "Scan:Excitation")
 ```
 """
 function add_parameter!(func::Function, grid::SpmGrid, name::AbstractString, unit::AbstractString,
     args...)::Nothing
 
     p = get_parameter.((grid, ), args)
-    data = func(p...)
+    data = @. func(p...)
     add_parameter!(grid, name, unit, data)
 
     return nothing

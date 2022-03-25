@@ -73,7 +73,7 @@ function get_factor_prefix(number::Float32)::Tuple{Float32, String}
     # 1. only down to pico, and 2. it will not convert 0.05 as 50.0m (instead as 0.0)
 
     if number == 0.0f0  # use `==` because 0.0f0 !== -0.0f0
-        return 0.0f0, ""
+        return 1.0f0, ""
     end
 
     unit_prefix = unit_prefixes[end]
@@ -437,7 +437,6 @@ function get_data_line(grid::SpmGrid, response_channel::String,
         label= "grid x=$point1, grid y=$point2"
         y = @view y[:,1,1]  # all other dimensions are of length 1
     end
-
     y_factor, y_prefix = get_factor_prefix(vcat(y, y_bwd))
     y_label = axis_label(grid, response_channel, y_prefix)
 
@@ -455,13 +454,16 @@ function get_data_line(grid::SpmGrid, response_channel::String,
         end
     end
 
+    xy = Point2f.(x, y)
+    xy_bwd = Point2f.(x_bwd, y_bwd)
+
     if observable
-        return (x=Observable(x), y=Observable(y), x_bwd=Observable(x_bwd), y_bwd=Observable(y_bwd),
+        return (xy=Observable(xy), xy_bwd=Observable(xy_bwd),
             x_factor=Observable(x_factor), x_prefix=Observable(x_prefix), x_label=Observable(x_label),
             y_factor=Observable(y_factor), y_prefix=Observable(y_prefix), y_label=Observable(y_label),
             plot_label=Observable(label))
     else
-        return (x=x, y=y, x_bwd=x_bwd, y_bwd=y_bwd,
+        return (xy=xy, xy_bwd=xy_bwd,
             x_factor=x_factor, x_prefix=x_prefix, x_label=x_label,
             y_factor=y_factor, y_prefix=y_prefix, y_label=y_label,
             plot_label=label)
@@ -513,11 +515,11 @@ function plot_line(grid::SpmGrid, response_channel::String,
     kwargs_fwd = get_kwargs(kwargs)
     kwargs_bwd = get_kwargs(kwargs, backward=true)
 
-    backend.scatterlines!(data.x, data.y,
+    backend.scatterlines!(data.xy,
         linewidth=2, markersize=2, color=color_spectrum_fwd, label=data.plot_label;
         kwargs_fwd...)
-    if backward && length(data.y_bwd) > 0
-        backend.scatterlines!(data.x_bwd, data.y_bwd,
+    if backward && length(data.xy_bwd) > 0
+        backend.scatterlines!(data.xy_bwd,
             linewidth=2, markersize=2, color=color_spectrum_bwd, label="$(data.plot_label) bwd";
             kwargs_bwd...)
     end
