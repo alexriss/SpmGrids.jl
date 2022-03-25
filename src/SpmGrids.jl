@@ -334,13 +334,13 @@ function add_channel!(func::Function, grid::SpmGrid, name::AbstractString, unit:
     args...; skip_backward::Bool=false)::Nothing
 
     channels = get_channel.((grid, ), args)
-    data = @. func(channels...)
+    data = func(channels...)
     add_channel!(grid, name, unit, data)
 
     if !skip_backward
         if all(has_channel.((grid, ), args, backward=true))
             channels = get_channel.((grid, ), args, backward=true)
-            data = @. func(channels...)
+            data = func(channels...)
             add_channel!(grid, channel_name_backward(name), unit, data)
         end
     end
@@ -470,7 +470,7 @@ function add_parameter!(func::Function, grid::SpmGrid, name::AbstractString, uni
     args...)::Nothing
 
     p = get_parameter.((grid, ), args)
-    data = @. func(p...)
+    data = func(p...)
     add_parameter!(grid, name, unit, data)
 
     return nothing

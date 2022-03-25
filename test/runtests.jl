@@ -144,8 +144,8 @@ end
 
 
     # should do backward channels too
-    add_channel!(x -> abs(x), grid, "CurrentAbs", "A", "Current")
-    add_channel!(x -> abs(x), grid, "CurrentAbs", "A", "Current")  # this overwrites the previous
+    add_channel!(x -> abs.(x), grid, "CurrentAbs", "A", "Current")
+    add_channel!(x -> abs.(x), grid, "CurrentAbs", "A", "Current")  # this overwrites the previous
     add_channel!((x,y) -> x + y, grid, "CurrentSum", "A", "Current", "CurrentAbs")
     @test length(grid.generated_channels) == 4
     @test skipnan(get_channel(grid, "CurrentAbs")) == skipnan(abs.(get_channel(grid, "Current")))
@@ -530,9 +530,9 @@ end
 
 
     grid = load_grid("Grid Spectroscopy006.3ds")
-    add_channel!(x -> abs(x), grid, "AbsCurrent", "A", "Current", skip_backward=true)
-    add_channel!(x -> abs(x), grid, "AbsBias", "V", "Bias")
-    add_parameter!(x -> abs(x), grid, "AbsExcitation", "V", "Scan:Excitation")
+    add_channel!(x -> abs.(x), grid, "AbsCurrent", "A", "Current", skip_backward=true)
+    add_channel!(x -> abs.(x), grid, "AbsBias", "V", "Bias")
+    add_parameter!(x -> abs.(x), grid, "AbsExcitation", "V", "Scan:Excitation")
 
     f = interactive_display(grid, "Frequency Shift", "Current", "Sweep Start",
         backward=true, backend=GLMakie, colormap=:lajolla)
