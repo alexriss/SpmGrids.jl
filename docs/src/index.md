@@ -26,7 +26,7 @@ using Pkg
 Pkg.add("GLMakie")
 ```
 
-## Interactive widget
+## [Interactive widget](@id interactive_widget)
 
 Now the fun begins. The easiest way to analyze grids is the interactive widget.
 
@@ -39,4 +39,4 @@ interactive_display("Bias_spectroscopy.3ds", colormap=:bluegreenyellow)
 
 ![demo of interactive display](demo_interactive.gif)
 
-You can also easily create and adapt these plots in julia, as described in the [Tutorial](@ref).
+You can also easily create and adapt these plots in julia, as described in the [Tutorial](@ref tutorial_start).

@@ -1,20 +1,31 @@
-## Tutorial
+# [Tutorial 1: Loading and plotting](@id tutorial_start)
 
-### Loading data and parameters
+## Loading data and parameters
 
-```@repl
+First, it is important to know that each grid has _channels_ and _parameters_. A channel is a 1D array of data over each point in the x,y grid. A parameter is one value for each point in the x,y grid.
+
+In most cases, channels and parameters have different names, e.g. the channel "Current" and the parameter "Z offset", but in some cases the same names are used.
+
+OK, let's look at some examples.
+
+```@repl 1
 using SpmGrids
-grid = load_grid("Bias_spectroscopy.3ds");
+grid = load_grid("Bias_spectroscopy.3ds")
 
-grid.experiment_parameters  # available parameter names
-grid.channel_names  # available channel names
+parameter_names(grid)  # available parameter names
+channel_names(grid)  # available channel names
 grid.size, grid.size_unit, grid.center, grid.angle, grid.pixelsize  # grid parameters
 grid.start_time, grid.end_time  # more parameters
 grid.header  # even more parameters
 
+has_channel(grid, "Current")  # true if the grid has a channel named "Current"
+has_parameter(grid, "Z offset")  # true if the grid has a parameter named "Z offset"
+```
+
+Now let's access the actual data. Just use `get_channel` and `get_parameter`:
+
+```@repl 1
 x = get_channel(grid, "Current");  # `Current` channel for the whole grid
-x = get_channel(grid, "Current [bwd]");  # `Current` channel (backwards)
-x = get_channel(grid, "Current", backward=true);  # `Current` channel (backwards)
 x = get_channel(grid, "Current", 5, 5);  # `Current` channel at point 5,5
 x = get_channel(grid, "Current", :, 5);  # `Current` channel for 5th row
 #  20th point of `Current` channel for 5th row
@@ -27,7 +38,46 @@ x = get_channel(grid, "Current", :, 5:6, 1:50);
 size(x) # 50 points of data for 20 columns and 2 rows
 ```
 
-### Plotting spectra
+There is an even easier function `get_data` that returns a channel or parameter. Just be careful not to mix up channels and parameters.
+
+```@repl 1
+x = get_data(grid, "Current");  # `Current` channel
+x = get_data(grid, "Sweep Start");  # `Sweep Start` parameter
+
+# the following returns the `Z` channel
+# there is also a `Z` parameter, but channels have precedence
+x = get_data(grid, "Z");
+
+# we can also access the `Z` parameter:
+x = get_data(grid, par"Z");
+
+# or, to make sure we can only get a channel
+x = get_data(grid, ch"Z");
+```
+
+
+Backward channels can be accessed as follows:
+
+```@repl 1
+x = get_channel(grid, "Current [bwd]");
+x = get_channel(grid, "Current", bwd=true);
+x = get_channel(grid, bwd"Current");
+x = get_data(grid, bwd"Z");
+x = get_data(grid, ch"Z"bwd);
+```
+
+Not every grid has a backwards sweep, though. That is why the above expressions give error messages.
+yes, that is actually on purpose. So that you can see what happens when you try to access channels that do no exist.
+
+Also, parameters never have extra backward data.
+
+Alright, shuffling data around is fun, but in many cases we want to create a plot. Luckily SpmGrids provides functions to do this fast and easy.
+
+## Plotting spectra
+
+First thing to know is that plotting needs a [Makie backend](https://makie.juliaplots.org/stable/documentation/backends/). CairoMakie can be used for static publication-quality images, while GLMakie and WGLMakie can be used as interactive backends.
+
+Let's see how it works in detail. First, we plot a spectrum. A spectrum is a plot of one channel against another channel for each point in the grid.
 
 ```@example
 using SpmGrids
@@ -62,7 +112,13 @@ fig[1, 2] = Legend(fig, ax, "Legend", framevisible=false)
 fig
 ```
 
-### Plotting lines
+## Plotting lines
+
+Line plots plot along lines in the three-dimensional grid that is spanned by the x,y plane, as well as the sweep channel.
+
+We can do different types of lines. For instance - similar to spectra - we can plot a response channel vs the sweep channel for a specific point in the x,y plane.
+
+But lines offer more choices: We can also plot a line of the response channel as a function of the x direction, as shown below.
 
 ```@example
 using SpmGrids
@@ -92,7 +148,11 @@ fig[3, 2] = Legend(fig, ax, "", framevisible=false, labelsize=10)
 fig
 ```
 
-### Plotting planes
+In all examples above, we use the indices for x, y, and the channel to select one-dimensional data.
+
+## Plotting planes
+
+To plot planes, we use indexing to select two-dimensional data. For instance, we can plot the "Frequency Shift" channel at a particular value of the sweep channel as a function of the x and y direction.
 
 ```@example plane
 using SpmGrids
@@ -121,10 +181,10 @@ fig
 # add second plot
 ax2 = Axis(g2[1, 1])
 
-# plot `Current` values of the backward sweep
+# plot `Current` values of the bwd sweep
 # for 10th to 100th point in the sweep for the 15th row
 r2 = plot_plane(grid, "Current", :, 15, 1:100,
-    ax=ax2, backward=true, colormap=:imola, backend=CairoMakie)
+    ax=ax2, bwd=true, colormap=:imola, backend=CairoMakie)
 ax2.title = r2.plot_label
 
 Colorbar(g2[1, 2], r2.plot, label=r2.data_label)
@@ -138,8 +198,9 @@ fig
 
 _(Still need to figure out why the colorbars are not aligned.)_
 
+## Plotting cubes
 
-### Plotting cubes
+And finally, we can plot three-dimensional data as cube plots.
 
 ```julia
 using SpmGrids
@@ -160,7 +221,3 @@ fig
 ![Cube plot](cube_plot.png)
 
 All the plots can be interactive if you use the right [Makie backend](https://makie.juliaplots.org/stable/documentation/backends/).
-
-## More information
-
-A more detailed description can be found in the [Reference](@ref).
