@@ -15,6 +15,7 @@ skipnan = SpmGrids.skipnan
     @test grid.size ≈ [1.5e-8, 1.5e-8]
     @test grid.size_unit == "m"
 
+
     @test grid.points == 128
 
     @test grid.bias ≈ 0.2
@@ -47,8 +48,8 @@ skipnan = SpmGrids.skipnan
     grid = load_grid("Grid Spectroscopy002.3ds")
 
     @test length(grid.data) == 20 * 20 * (18 + 10 * 128)  # pixels * (parameters + channels * points)
-    @test size(get_channel(grid, "Bias", 4:20, 5:5)) == (128,17,1)
-    @test size(get_channel(grid, "Frequency Shift", 4:20, 5:7, 20:23)) == (4,17,3)
+    @test size(get_channel(grid, "Bias", 4:20, 5:5)) == (17,1,128)
+    @test size(get_channel(grid, "Frequency Shift", 4:20, 5:7, 20:23)) == (17,3, 4)
     @test get_channel(grid, "Bias", 20, 7, 20)[] ≈ 0.15511811f0
     @test all(get_parameter(grid, "Z offset", 3, :) .≈ 0.0)
     @test get_parameter(grid, "Z", 3, 5)[] ≈ -1.1132063f-8
@@ -114,10 +115,10 @@ skipnan = SpmGrids.skipnan
 
     @test typeof(get_data(grid, ch"Current", view=false)) <: Array
     @test typeof(get_data(grid, ch"Current", view=false, :, 1, 1)) <: Array
-    @test typeof(get_data(grid, ch"Current", view=false, 1, 1, 1)) <: Float32
+    @test typeof(get_data(grid, ch"Current", view=false, 1, 1, 1)) <: Array
     @test typeof(get_data(grid, par"Scan:Excitation", view=false)) <: Array
     @test typeof(get_data(grid, par"Scan:Excitation", view=false, :, 2)) <: Array
-    @test typeof(get_data(grid, par"Scan:Excitation", view=false, 2, 2)) == Float32
+    @test typeof(get_data(grid, par"Scan:Excitation", view=false, 2, 2)) <: Array
 
     err = nothing
     try
@@ -232,7 +233,7 @@ end
     @test all(skipnan(get_parameter(grid, "WeirdOne")) .==
         skipnan(get_parameter(grid, "Sweep Diff") + get_parameter(grid, "Scan:Excitation")))
 
-    add_channel!((x,y) -> x .- y, grid, "Z rel", "Z", "Sweep Start")
+    add_channel!((x,y) -> x .- y, grid, "Z rel", "m", "Z", "Sweep Start")
     z = get_channel(grid, "Z")
     @test all(skipnan(get_data(grid, ch"Z rel")) .== skipnan(z .- get_parameter(grid, "Sweep Start")))
 end

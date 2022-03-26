@@ -129,9 +129,9 @@ i.e. it picks the values along this axis that are not NaNs.
 It also checks if all values are equal across the other dimensions.
 """
 function get_sweep_span(data::AbstractArray{Float32,3})::Vector{Float32}
-    res = data[:, 1, 1]
+    res = data[1, 1, :]
     for i in 1:length(res)
-        dataf = filter(!isnan, @view data[i, :, :])
+        dataf = filter(!isnan, @view data[:, :, i])
         if length(dataf) == 0
             res[i] = NaN32
         else
@@ -312,11 +312,11 @@ function plot_spectrum(grid::SpmGrid, sweep_channel::String, response_channel::S
     colors_bwd = backend.cgrad([color_spectrum_bwd, color_spectrum_light_bwd], n)
     i = 1
     for (i_x,idx_x) in enumerate(x_index), (i_y,idx_y) in enumerate(y_index)
-        x_plot = @view x[:, i_x, i_y]
-        y_plot = @view y[:, i_x, i_y]
+        x_plot = @view x[i_x, i_y, :]
+        y_plot = @view y[i_x, i_y, :]
         if bwd && length(x_bwd) > 0
-            x_plot_bwd = @view x_bwd[:, i_x, i_y]
-            y_plot_bwd = @view y_bwd[:, i_x, i_y]
+            x_plot_bwd = @view x_bwd[i_x, i_y, :]
+            y_plot_bwd = @view y_bwd[i_x, i_y, :]
         end
 
         x_plot = x_plot ./ x_factor
@@ -385,7 +385,7 @@ function get_data_line(grid::SpmGrid, response_channel::String,
         y_bwd = Float32[]
     end
 
-    nc, nx, ny = size(y)
+    nx, ny, nc = size(y)
     gridx_span = range(0, grid.size[1], length=grid.pixelsize[1])
     gridy_span = range(0, grid.size[2], length=grid.pixelsize[2])
     sweep_span = get_channel(grid, grid.sweep_signal, 1, 1, :)
@@ -396,10 +396,10 @@ function get_data_line(grid::SpmGrid, response_channel::String,
         point1 = format_with_prefix(gridy_span[y_index[]]) * grid.size_unit
         point2 = format_with_prefix(sweep_span[channel_index[]]) * grid.channel_units[grid.sweep_signal]
         label = "grid y=$point1, $(grid.sweep_signal)=$point2"
-        y = @view y[1,:,1]  # all other dimensions are of length 1
+        y = @view y[:, 1, 1]  # all other dimensions are of length 1
         if length(y_bwd) > 0
             x_bwd = x
-            y_bwd = @view y_bwd[1,:,1]
+            y_bwd = @view y_bwd[:, 1, 1]
         end
     elseif ny != 1
         x = gridy_span[y_index]
@@ -408,10 +408,10 @@ function get_data_line(grid::SpmGrid, response_channel::String,
         point1 = format_with_prefix(gridx_span[x_index[]]) * grid.size_unit
         point2 = format_with_prefix(sweep_span[channel_index[]]) * grid.channel_units[grid.sweep_signal]
         label = "grid x=$point1, $(grid.sweep_signal)=$point2"
-        y = @view y[1,1,:]  # all other dimensions are of length 1
+        y = @view y[1, :, 1]  # all other dimensions are of length 1
         if length(y_bwd) > 0
             x_bwd = x
-            y_bwd = @view y_bwd[1,1,:]
+            y_bwd = @view y_bwd[1, :, 1]
         end
     else
         if sweep_channel === ""
@@ -425,14 +425,14 @@ function get_data_line(grid::SpmGrid, response_channel::String,
             else
                 x_bwd = x
             end
-            y_bwd = @view y_bwd[:,1,1]
+            y_bwd = @view y_bwd[1, 1, :]
         end
         x_factor, x_prefix = get_factor_prefix(vcat(x, x_bwd))
         x_label = axis_label(grid, sweep_channel, x_prefix)
         point1 = format_with_prefix(gridx_span[x_index[]]) * grid.size_unit
         point2 = format_with_prefix(gridy_span[y_index[]]) * grid.size_unit
         label= "grid x=$point1, grid y=$point2"
-        y = @view y[:,1,1]  # all other dimensions are of length 1
+        y = @view y[1, 1, :]  # all other dimensions are of length 1
     end
     y_factor, y_prefix = get_factor_prefix(vcat(y, y_bwd))
     y_label = axis_label(grid, response_channel, y_prefix)
@@ -681,7 +681,7 @@ function get_data_plane(grid::SpmGrid, response_channel::String,
         throw(ArgumentError("Use indexes to obtain a two-dimensional array (e.g. of size 128,1,5). Currently, the array size is $(size(z))."))
     end
 
-    nc, nx, ny = size(z)
+    nx, ny, nc = size(z)
     gridx_span = range(0, grid.size[1], length=grid.pixelsize[1])
     gridy_span = range(0, grid.size[2], length=grid.pixelsize[2])
     sweep_span = get_sweep_span(get_channel(grid, grid.sweep_signal, x_index, y_index, :))
@@ -698,7 +698,7 @@ function get_data_plane(grid::SpmGrid, response_channel::String,
         label = "grid y=$point"
 
         ax_aspect = 1
-        z = @views z[:,:,1]'  # y dimension is 1
+        z = @views z[:, 1, :]'  # y dimension is 1
     elseif ny != 1 && nc != 1
         x = gridx_span[y_index]
         y = sweep_span[channel_index]
@@ -712,7 +712,7 @@ function get_data_plane(grid::SpmGrid, response_channel::String,
         label = "grid x=$point"
 
         ax_aspect = 1
-        z = @views z[:,1,:]' # x dimension is 1
+        z = @views z[1, :, :]' # x dimension is 1
     else
         x = gridx_span[x_index]
         y = gridy_span[y_index]
@@ -727,7 +727,7 @@ function get_data_plane(grid::SpmGrid, response_channel::String,
         label = "$(grid.sweep_signal)=$point"
 
         ax_aspect = backend.DataAspect()
-        z = @view z[1,:,:]  # channel dimension is 1
+        z = @view z[:, :, 1]  # channel dimension is 1
     end
 
     z_factor, z_prefix = get_factor_prefix(z)
@@ -868,7 +868,6 @@ function get_data_cube(grid::SpmGrid, response_channel::String,
     aspect_z = max(aspect_x, aspect_y)
     ax_aspect = (aspect_x, aspect_y, aspect_z)
 
-    data = @views permutedims(data, [2, 3, 1])
     data_factor, data_prefix = get_factor_prefix(data)
     data_label = axis_label(grid, response_channel, data_prefix)
     data_plot = data ./ data_factor

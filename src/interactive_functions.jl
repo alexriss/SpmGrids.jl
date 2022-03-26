@@ -24,7 +24,9 @@ function interactive_display(grid::SpmGrid, response_channel::String="", respons
     end
 
     if fig === nothing
-        backend.set_window_config!(title="SpmGrids")
+        if isdefined(backend, :set_window_config!)  # WGLMakie does not have it
+            backend.set_window_config!(title="SpmGrids")
+        end
         fontsize_theme = backend.Theme(fontsize = 10)
         backend.set_theme!(fontsize_theme)
         fig = backend.Figure(resolution = (1200, 1000))

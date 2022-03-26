@@ -222,7 +222,10 @@ function read_binary_data!(grid::SpmGrid, f::IOStream, num_parameters::Int)::Not
 
     seekstart(io)
     read!(io, data)
-    grid.data = ntoh.(data)  # big-endian to host endian
+    data .= ntoh.(data)  # big-endian to host endian
+
+    # permute dims, so that we have, x, y, channel
+    grid.data = PermutedDimsArray(data, (2,3,1))
 
     return nothing
 end
@@ -319,24 +322,20 @@ function get_channel(grid::SpmGrid, name::AbstractString,
         """Available channel names are: $(join(all_channel_names, ", "))."""))
     end
 
-    # generated channels
-    if haskey(grid.generated_channels, name)
-        if view
-            return @view grid.generated_channels[name][channel_index, x_index, y_index]
-        else
-            return grid.generated_channels[name][channel_index, x_index, y_index]
+    if haskey(grid.generated_channels, name)  # generated channels
+        res =  @view grid.generated_channels[name][x_index, y_index, channel_index]
+    else  # "original" channels
+        idx = get_channel_index(grid, name)
+        if channel_index !== Colon()
+            idx = idx[channel_index]
         end
+        res = @view grid.data[x_index, y_index, idx]
     end
 
-    # "original" channels
-    idx = get_channel_index(grid, name)
-    if channel_index !== Colon()
-        idx = idx[channel_index]
-    end
     if view
-        return @view grid.data[idx, x_index, y_index]
+        return res
     else
-        return grid.data[idx, x_index, y_index]
+        return copy(res)
     end
 end
 
@@ -355,8 +354,8 @@ function add_channel!(grid::SpmGrid, name::AbstractString, unit::AbstractString,
 
     name = strip_prefix(name, PREFIX_channel)
 
-    if size(data) != (grid.points, grid.pixelsize...)
-        throw(ArgumentError("The data array needs to be of size $((grid.points, grid.pixelsize[1], grid.pixelsize[2])), but it has size $(size(data))."))
+    if size(data) != (grid.pixelsize..., grid.points)
+        throw(ArgumentError("The data array needs to be of size $((grid.pixelsize[1], grid.pixelsize[2], grid.points)), but it has size $(size(data))."))
     end
     if name in grid.channel_names
         throw(ArgumentError("Channel name $(name) already exists in the original grid data. Please choose a different name."))
@@ -481,18 +480,16 @@ function get_parameter(grid::SpmGrid, name::AbstractString,
     end
     
     if haskey(grid.generated_parameters, name)
-        if view
-            return @view grid.generated_parameters[name][x_index, y_index]
-        else
-            return grid.generated_parameters[name][x_index, y_index]
-        end
+        res = @view grid.generated_parameters[name][x_index, y_index]
     else
         idx = get_parameter_index(grid, name)
-        if view
-            return @view grid.data[idx, x_index, y_index]
-        else
-            return grid.data[idx, x_index, y_index]
-        end
+        res = @view grid.data[x_index, y_index, idx]
+    end
+
+    if view
+        return res
+    else
+        return copy(res)
     end
 end
 
@@ -551,9 +548,9 @@ function add_parameter!(func::Function, grid::SpmGrid, name::AbstractString, uni
 
     p = map(args) do pname
         if has_parameter(grid, pname)  # prefer parameter names (get_data prefer channel names)
-            return get_parameter(grid, args)
+            return get_parameter(grid, pname)
         else
-            return get_data(grid, args)
+            return get_data(grid, pname)
         end
     end
 
