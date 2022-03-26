@@ -1,6 +1,6 @@
 """
     interactive_display(grid::SpmGrid, response_channel::String="", response_channel2::String="", parameter::String="";
-        backward::Bool=false, fig::Any=nothing, backend::Module=Main)::Any
+        bwd::Bool=false, fig::Any=nothing, backend::Module=Main)::Any
 
 Display the grid in an interactive GUI that can be used in Pluto, Jupyter, or other interactive environments.
 `response_channel` specifies the initial choice of the response channel,
@@ -11,7 +11,7 @@ Before using this function, a [Makie](https://makie.juliaplots.org/) backend (`G
 should be imported and the figure can be set up and passed via the `fig` keyword argument.
 """
 function interactive_display(grid::SpmGrid, response_channel::String="", response_channel2::String="", parameter::String="";
-    backward::Bool=false, fig::Any=nothing, backend::Module=Main, kwargs...)::Any
+    bwd::Bool=false, fig::Any=nothing, backend::Module=Main, kwargs...)::Any
 
     if response_channel === ""
         response_channel = grid.channel_names[1]
@@ -40,8 +40,8 @@ function interactive_display(grid::SpmGrid, response_channel::String="", respons
         p * " ($(get_parameter_unit(grid, p)))"
     end
 
-    backward_exists = length(all_channel_names) != length(channel_names(grid, skip_backward=false))
-    backward_exists_for_all = length(all_channel_names) == length(channel_names(grid, skip_backward=false)) ÷ 2
+    bwd_exists = length(all_channel_names) != length(channel_names(grid, skip_bwd=false))
+    bwd_exists_for_all = length(all_channel_names) == length(channel_names(grid, skip_bwd=false)) ÷ 2
 
     # layout
 
@@ -63,7 +63,7 @@ function interactive_display(grid::SpmGrid, response_channel::String="", respons
 
     # have to get this here because we need the data
     data_cube = get_data_cube(grid, response_channel, :, :, :,
-        backward=backward, observable=true)
+        bwd=bwd, observable=true)
 
     # widgets 
 
@@ -82,9 +82,9 @@ function interactive_display(grid::SpmGrid, response_channel::String="", respons
     grid_x, grid_y, grid_z = [s.value for s in lsgrid.sliders]
     grid_z_start = grid_z[]
 
-    if backward_exists
+    if bwd_exists
         label_dir = backend.Label(g12[3,1][1,1], "backward", halign=:left, tellwidth=false)
-        toggle_forward = backend.Toggle(g12[3,1][1,2], active=!backward, halign=:left, tellwidth=false)
+        toggle_forward = backend.Toggle(g12[3,1][1,2], active=!bwd, halign=:left, tellwidth=false)
         label_dir2 = backend.Label(g12[3,1][1,3], "forward", halign=:left, tellwidth=false)
         forward = toggle_forward.active[]
 
@@ -92,7 +92,7 @@ function interactive_display(grid::SpmGrid, response_channel::String="", respons
         backend.hidespines!(invisax)
         backend.hidedecorations!(invisax)
 
-        label_dir3_str = backward_exists_for_all ? "" : "(not available for all)"
+        label_dir3_str = bwd_exists_for_all ? "" : "(not available for all)"
         label_dir3 = backend.Label(g12[3,1][1,5], label_dir3_str, halign=:left, tellwidth=false, color="#a0a0a0")
         
         # todo: toggle backward/forward for spectra
@@ -111,7 +111,7 @@ function interactive_display(grid::SpmGrid, response_channel::String="", respons
     plot_cube(data_cube, ax_cube, g11[1, 2], backend; kwargs...)
 
     data_plane = get_data_plane(grid, response_channel, :, :, grid_z[],
-        backward=!forward, backend=backend, observable=true)
+        bwd=!forward, backend=backend, observable=true)
     ax_plane_channel = backend.Axis(g21[1, 1], title=data_plane.plot_label)
     plot_plane(data_plane, ax_plane_channel, g21[1, 2], backend; kwargs...)
 
@@ -143,11 +143,11 @@ function interactive_display(grid::SpmGrid, response_channel::String="", respons
     # events
 
     backend.on(menu_channel.selection) do s
-        forward = !backward_exists || toggle_forward.active[] ||
-            !has_channel(grid, channel_name_backward(s))
-        data_new = get_data_cube(grid, s, :, :, :, backward=!forward)
+        forward = !bwd_exists || toggle_forward.active[] ||
+            !has_channel(grid, channel_name_bwd(s))
+        data_new = get_data_cube(grid, s, :, :, :, bwd=!forward)
         set_observable_values!(data_cube, data_new)
-        data_new = get_data_plane(grid, s, :, :, grid_z[], backward=!forward)
+        data_new = get_data_plane(grid, s, :, :, grid_z[], bwd=!forward)
         set_observable_values!(data_plane, data_new)
         data_new = get_data_line(grid, s, grid_x[], grid_y[], :)
         set_observable_values!(data_line_1, data_new)
@@ -160,13 +160,13 @@ function interactive_display(grid::SpmGrid, response_channel::String="", respons
         backend.autolimits!(ax_line_2)
     end
 
-    if backward_exists
+    if bwd_exists
         backend.on(toggle_forward.active) do s
             response_channel = menu_channel.selection[]
-            s = s || !backward_exists || !has_channel(grid, channel_name_backward(response_channel))
-            data_new = get_data_cube(grid, response_channel, :, :, :, backward=!s)
+            s = s || !bwd_exists || !has_channel(grid, channel_name_bwd(response_channel))
+            data_new = get_data_cube(grid, response_channel, :, :, :, bwd=!s)
             set_observable_values!(data_cube, data_new)
-            data_new = get_data_plane(grid, response_channel, :, :, grid_z[], backward=!s)
+            data_new = get_data_plane(grid, response_channel, :, :, grid_z[], bwd=!s)
             set_observable_values!(data_plane, data_new)
         end
     end
@@ -178,9 +178,9 @@ function interactive_display(grid::SpmGrid, response_channel::String="", respons
 
     backend.on(grid_z) do z
         response_channel = menu_channel.selection[]
-        forward = !backward_exists || toggle_forward.active[] ||
-            !has_channel(grid, channel_name_backward(response_channel))
-        data_new = get_data_plane(grid, response_channel, :, :, z, backward=!forward)
+        forward = !bwd_exists || toggle_forward.active[] ||
+            !has_channel(grid, channel_name_bwd(response_channel))
+        data_new = get_data_plane(grid, response_channel, :, :, z, bwd=!forward)
         set_observable_values!(data_plane, data_new)
         backend.translate!(rect_3d, 0, 0, data_cube.z[][grid_z[]] - data_cube.z[][grid_z_start])
     end
@@ -213,7 +213,7 @@ end
 
 """
     interactive_display(fname::String, response_channel::String="", response_channel2::String="", parameter::String="";
-        backward::Bool=false, fig::Any=nothing, backend::Module=Main, kwargs...)::Any
+        bwd::Bool=false, fig::Any=nothing, backend::Module=Main, kwargs...)::Any
 
 Display the grid in an interactive GUI that can be used in Pluto, Jupyter, or other interactive environments.
 `response_channel` specifies the initial choice of the response channel,
@@ -224,14 +224,14 @@ Before using this function, a [Makie](https://makie.juliaplots.org/) backend (`G
 should be imported and the figure can be set up and passed via the `fig` keyword argument.
 """
 function interactive_display(fname::String, response_channel::String="", response_channel2::String="", parameter::String="";
-    backward::Bool=false, fig::Any=nothing, backend::Module=Main, kwargs...)::Any
+    bwd::Bool=false, fig::Any=nothing, backend::Module=Main, kwargs...)::Any
 
     if !(isfile(fname))
         throw(ArgumentError("File $fname not found."))
     end
     grid = load_grid(fname)
     return interactive_display(grid, response_channel, response_channel2, parameter,;
-        backward=backward, fig=fig, backend=backend, kwargs...)
+        bwd=bwd, fig=fig, backend=backend, kwargs...)
 end
 
 
@@ -262,16 +262,16 @@ end
 
 
 """
-    plot_line(data::NamedTuple, ax::Any, backend::Module; backward::Bool=true, kwargs...)::Nothing
+    plot_line(data::NamedTuple, ax::Any, backend::Module; bwd::Bool=true, kwargs...)::Nothing
 
 Plots a line from the NamedTuple `x` vs `y` and `x_bwd` vs `y_bwd` on Axis `ax`
 """
-function plot_line(data::NamedTuple, ax::Any, backend::Module; backward::Bool=true, kwargs...)::Nothing
+function plot_line(data::NamedTuple, ax::Any, backend::Module; bwd::Bool=true, kwargs...)::Nothing
     check_makie_loaded(backend)
     backend.current_axis!(ax)
 
     kwargs_fwd = get_kwargs(kwargs)
-    kwargs_bwd = get_kwargs(kwargs, backward=true)
+    kwargs_bwd = get_kwargs(kwargs, bwd=true)
 
     backend.scatterlines!(data.xy,
         linewidth=2, markersize=2, color=color_spectrum_fwd, label=data.plot_label;

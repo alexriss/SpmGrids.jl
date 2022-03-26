@@ -59,13 +59,13 @@ skipnan = SpmGrids.skipnan
     @test has_parameter(grid, "Sweep En") == false
     @test has_channel(grid, "Current")
     @test has_channel(grid, "Z")
-    @test has_channel(grid, "Current", backward=true) == false
-    @test has_channel(grid, "Curren", backward=true) == false
+    @test has_channel(grid, "Current", bwd=true) == false
+    @test has_channel(grid, "Curren", bwd=true) == false
     @test has_channel(grid, "Curren") == false
     @test has_channel(grid, "Current [bwd]") == false
 
     logs, value = Test.collect_test_logs() do
-        get_channel(grid, "Bias", backward=true)
+        get_channel(grid, "Bias", bwd=true)
     end
     @test occursin("Using forward", logs[1].message)
 
@@ -77,10 +77,10 @@ skipnan = SpmGrids.skipnan
     @test has_parameter(grid, "Sweep En") == false
     @test has_channel(grid, "Current")
     @test has_channel(grid, "Z")
-    @test has_channel(grid, "Current", backward=true)
-    @test has_channel(grid, "Curren", backward=true) == false
+    @test has_channel(grid, "Current", bwd=true)
+    @test has_channel(grid, "Curren", bwd=true) == false
     @test has_channel(grid, "Current [bwd]")
-    @test has_channel(grid, "Current [bwd]", backward=true)
+    @test has_channel(grid, "Current [bwd]", bwd=true)
 
     err = nothing
     try
@@ -98,7 +98,37 @@ skipnan = SpmGrids.skipnan
     @test err isa Exception
     @test contains(sprint(showerror, err), "not found")
 
+    @test all(skipnan(get_data(grid, ch"Current"bwd)) .== skipnan(get_channel(grid, "Current", bwd=true)))
+    @test all(skipnan(get_data(grid, ch"Current")) .== skipnan(get_channel(grid, "Current")))
+    @test all(skipnan(get_data(grid, "Current")) .== skipnan(get_channel(grid, "Current")))
+    @test all(skipnan(get_data(grid, "Current")) .== skipnan(get_channel(grid, ch"Current")))
+    @test all(skipnan(get_data(grid, "Scan:Excitation")) .== skipnan(get_parameter(grid, "Scan:Excitation")))
+    @test all(skipnan(get_data(grid, par"Scan:Excitation")) .== skipnan(get_parameter(grid, "Scan:Excitation")))
+    @test all(skipnan(get_data(grid, par"Scan:Excitation")) .== skipnan(get_parameter(grid, par"Scan:Excitation")))
+    @test typeof(get_data(grid, ch"Current")) <: SubArray
+    @test typeof(get_data(grid, ch"Current", :, 1, 1)) <: SubArray
+    @test typeof(get_data(grid, ch"Current", 1, 1, 1)) <: SubArray
+    @test typeof(get_data(grid, par"Scan:Excitation")) <: SubArray
+    @test typeof(get_data(grid, par"Scan:Excitation", :, 2)) <: SubArray
+    @test typeof(get_data(grid, par"Scan:Excitation", 2, 2)) <: SubArray
+
+    @test typeof(get_data(grid, ch"Current", view=false)) <: Array
+    @test typeof(get_data(grid, ch"Current", view=false, :, 1, 1)) <: Array
+    @test typeof(get_data(grid, ch"Current", view=false, 1, 1, 1)) <: Float32
+    @test typeof(get_data(grid, par"Scan:Excitation", view=false)) <: Array
+    @test typeof(get_data(grid, par"Scan:Excitation", view=false, :, 2)) <: Array
+    @test typeof(get_data(grid, par"Scan:Excitation", view=false, 2, 2)) == Float32
+
+    err = nothing
+    try
+        get_data(grid, "doesnotexist")
+    catch err
+    end
+    @test err isa Exception
+    @test contains(sprint(showerror, err), "Available channel names")
+    @test contains(sprint(showerror, err), "Available parameter names")
 end
+
 
 @testset "add data" begin
     grid = load_grid("Grid Spectroscopy006.3ds")
@@ -129,12 +159,12 @@ end
     @test contains(sprint(showerror, err), "specify a channel name")
     @test contains(sprint(showerror, err), "Please")  # be polite
 
-    add_channel!(x -> abs.(x), grid, "CurrentAbs", "A", "Current", skip_backward=true)
-    add_channel!(x -> abs.(x), grid, "CurrentAbs", "A", "Current", skip_backward=true)  # this overwrites the previous
-    add_channel!((x,y) -> x + y, grid, "CurrentSum", "A", "Current", "CurrentAbs", skip_backward=true)
+    add_channel!(x -> abs.(x), grid, "CurrentAbs", "A", "Current", skip_bwd=true)
+    add_channel!(x -> abs.(x), grid, "CurrentAbs", "A", "Current", skip_bwd=true)  # this overwrites the previous
+    add_channel!((x,y) -> x + y, grid, "CurrentSum", "A", "Current", "CurrentAbs", skip_bwd=true)
 
     @test length(grid.generated_channels) == 2
-    @test skipnan(get_channel(grid, "CurrentAbs")) == skipnan(abs.(get_channel(grid, "Current")))
+    @test all(skipnan(get_channel(grid, "CurrentAbs")) .== skipnan(abs.(get_channel(grid, "Current"))))
     @test get_channel(grid, "CurrentSum", 1, 2, 20) ≈
         get_channel(grid, "CurrentAbs", 1, 2, 20) + get_channel(grid, "Current", 1, 2, 20)
     @test all(skipnan(get_channel(grid, "CurrentSum", 1:10, 2, 20)) .== 
@@ -148,14 +178,14 @@ end
     add_channel!(x -> abs.(x), grid, "CurrentAbs", "A", "Current")  # this overwrites the previous
     add_channel!((x,y) -> x + y, grid, "CurrentSum", "A", "Current", "CurrentAbs")
     @test length(grid.generated_channels) == 4
-    @test skipnan(get_channel(grid, "CurrentAbs")) == skipnan(abs.(get_channel(grid, "Current")))
+    @test all(skipnan(get_channel(grid, "CurrentAbs")) .== skipnan(abs.(get_channel(grid, "Current"))))
     @test get_channel(grid, "CurrentSum", 1, 2, 20) ≈
         get_channel(grid, "CurrentAbs", 1, 2, 20) + get_channel(grid, "Current", 1, 2, 20)
     @test all(get_channel(grid, "CurrentSum", 1:10, 2, 20) .== 
         get_channel(grid, "CurrentAbs", 1:10, 2, 20) + get_channel(grid, "Current", 1:10, 2, 20))
     @test all(skipnan(get_channel(grid, "CurrentSum", 1:10, :, 1:20)) .==
         skipnan(get_channel(grid, "CurrentAbs", 1:10, :, 1:20) + get_channel(grid, "Current", 1:10, :, 1:20)))
-    @test skipnan(get_channel(grid, "CurrentAbs [bwd]")) == skipnan(abs.(get_channel(grid, "Current [bwd]")))
+    @test all(skipnan(get_channel(grid, "CurrentAbs [bwd]")) .== skipnan(abs.(get_channel(grid, "Current [bwd]"))))
     @test get_channel(grid, "CurrentSum [bwd]", 1, 2, 20) ≈
         get_channel(grid, "CurrentAbs [bwd]", 1, 2, 20) + get_channel(grid, "Current [bwd]", 1, 2, 20)
     @test all(skipnan(get_channel(grid, "CurrentSum", 1:10, 2, 20)) .== 
@@ -197,10 +227,14 @@ end
     @test length(grid.generated_parameters) == 2
     @test get_parameter(grid, "Sweep Diff", 1, 2) ≈
         get_parameter(grid, "Sweep End", 1, 2) - get_parameter(grid, "Sweep Start", 1, 2)
-    @test skipnan(get_parameter(grid, "Sweep Diff")) ==
-        skipnan(get_parameter(grid, "Sweep End") - get_parameter(grid, "Sweep Start"))
-    @test skipnan(get_parameter(grid, "WeirdOne")) ==
-        skipnan(get_parameter(grid, "Sweep Diff") + get_parameter(grid, "Scan:Excitation"))
+    @test all(skipnan(get_parameter(grid, "Sweep Diff")) .==
+        skipnan(get_parameter(grid, "Sweep End") - get_parameter(grid, "Sweep Start")))
+    @test all(skipnan(get_parameter(grid, "WeirdOne")) .==
+        skipnan(get_parameter(grid, "Sweep Diff") + get_parameter(grid, "Scan:Excitation")))
+
+    add_channel!((x,y) -> x .- y, grid, "Z rel", "Z", "Sweep Start")
+    z = get_channel(grid, "Z")
+    @test all(skipnan(get_data(grid, ch"Z rel")) .== skipnan(z .- get_parameter(grid, "Sweep Start")))
 end
 
 
@@ -339,7 +373,7 @@ end
 
     fig = CairoMakie.Figure(resolution = (800, 400));
     ax = CairoMakie.Axis(fig[1, 1])
-    r = plot_plane(grid, "Amplitude", :, 1, 1:120, backward=true)
+    r = plot_plane(grid, "Amplitude", :, 1, 1:120, bwd=true)
     @test ax.xlabel[] == "grid x / nm"
     @test ax.ylabel[] == "Z [bwd] / nm"
     @test r.data_label == "Amplitude [bwd] / pm"
@@ -351,7 +385,7 @@ end
 
     # this should give out two warnings, because there are no backward channels
     logs, value = Test.collect_test_logs() do
-        r = plot_plane(grid, "Amplitude", :, :, 20, backward=true)
+        r = plot_plane(grid, "Amplitude", :, :, 20, bwd=true)
     end
     @test occursin("No backward sweep data", logs[1].message)
     @test occursin("No backward sweep data", logs[2].message)
@@ -366,7 +400,7 @@ end
     grid = load_grid("Grid Spectroscopy006.3ds")
     fig = CairoMakie.Figure(resolution = (800, 400));
     ax = CairoMakie.Axis(fig[1, 1])
-    r = plot_plane(grid, "Z", :, :, 21, backward=true)  # Z is constant
+    r = plot_plane(grid, "Z", :, :, 21, bwd=true)  # Z is constant
 
     ax.title = r.plot_label
     Colorbar(fig[1, 2], r.plot, label=r.data_label)
@@ -438,7 +472,7 @@ end
     ax = CairoMakie.Axis3(fig[1, 1], perspectiveness=0.5)
 
     r = plot_cube(grid, "Amplitude", :, :, :,
-        backward=true, colormap=:Spectral_11, backend=CairoMakie)
+        bwd=true, colormap=:Spectral_11, backend=CairoMakie)
     Colorbar(fig[1, 2], r.plot, label=r.data_label)
 
     @test ax.xlabel[] == "grid x / nm"
@@ -530,12 +564,12 @@ end
 
 
     grid = load_grid("Grid Spectroscopy006.3ds")
-    add_channel!(x -> abs.(x), grid, "AbsCurrent", "A", "Current", skip_backward=true)
+    add_channel!(x -> abs.(x), grid, "AbsCurrent", "A", "Current", skip_bwd=true)
     add_channel!(x -> abs.(x), grid, "AbsBias", "V", "Bias")
     add_parameter!(x -> abs.(x), grid, "AbsExcitation", "V", "Scan:Excitation")
 
     f = interactive_display(grid, "Frequency Shift", "Current", "Sweep Start",
-        backward=true, backend=GLMakie, colormap=:lajolla)
+        bwd=true, backend=GLMakie, colormap=:lajolla)
 
     @test content(f[1,1][1,1]).xlabel[] == "grid x / nm"  # cube
     @test content(f[1,1][1,1]).ylabel[] == "grid y / nm"

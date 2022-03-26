@@ -7,20 +7,17 @@ const color_spectrum_light_fwd = "#9495f1"
 const color_spectrum_light_bwd = "#F89F9A"
 
 
-skipnan(x) = filter(!isnan, x)
-
-
 """
-    get_kwargs(kwargs::Base.Pairs; backward::Bool=false)::Dict{Symbol,Any}
+    get_kwargs(kwargs::Base.Pairs; bwd::Bool=false)::Dict{Symbol,Any}
 
 Extracts the keyword arguments for forward and backward plots. The arguments for backward
 plot are suffixed by `_bwd`.
 """
-function get_kwargs(kwargs::Base.Pairs; backward::Bool=false)::Dict{Symbol,Any}
+function get_kwargs(kwargs::Base.Pairs; bwd::Bool=false)::Dict{Symbol,Any}
     res = Dict{Symbol,Any}()
     for (k,v) in kwargs
         kstr = string(k)
-        if backward
+        if bwd
             if endswith(kstr, "_bwd")
                 res[Symbol(kstr[1:end-4])] = v
             end
@@ -238,13 +235,13 @@ end
 """
     plot_spectrum(grid::SpmGrid, sweep_channel::String, response_channel::String,
         x_index::GridRange, y_index::GridRange, channel_index::GridRange=:;
-        backward::Bool=true, ax::Any=nothing, backend::Module=Main,
+        bwd::Bool=true, ax::Any=nothing, backend::Module=Main,
         kwargs...)::Nothing
 
 Plots a line plot of `response_channel` vs `sweep_channel` on the given `x_index` and `y_index`.
 If `sweep_channel` is `""`, then the sweep signal will be used for `sweep_channel`.
 Additionally, the spectrum data can be indexed by `channel_index`.
-If `include_backward` is `true`` (default), the plot will include data from backward sweep as well (if they exist).
+If `bwd` is `true` (default), the plot will include data from backward sweep as well (if they exist).
 
 Before using this function, a [Makie](https://makie.juliaplots.org/) backend (`GLMakie`, `CairoMakie` or `WGLMakie`) should be imported
 and the figure or axis should be set up.
@@ -257,7 +254,7 @@ Keyword arrguments with the suffix `_bwd` will be used for plotting of the backw
 """
 function plot_spectrum(grid::SpmGrid, sweep_channel::String, response_channel::String,
     x_index::GridRange, y_index::GridRange, channel_index::GridRange=:;
-    backward::Bool=true, ax::Any=nothing, backend::Module=Main,
+    bwd::Bool=true, ax::Any=nothing, backend::Module=Main,
     kwargs...)::Nothing
 
     check_makie_loaded(backend)
@@ -281,9 +278,9 @@ function plot_spectrum(grid::SpmGrid, sweep_channel::String, response_channel::S
 
     @assert size(x) == size(y)
 
-    if has_channel(grid, sweep_channel, backward=true) && has_channel(grid, response_channel, backward=true)
-        x_bwd = get_channel(grid, channel_name_backward(sweep_channel), x_index, y_index, channel_index)
-        y_bwd = get_channel(grid, channel_name_backward(response_channel), x_index, y_index, channel_index)
+    if has_channel(grid, sweep_channel, bwd=true) && has_channel(grid, response_channel, bwd=true)
+        x_bwd = get_channel(grid, channel_name_bwd(sweep_channel), x_index, y_index, channel_index)
+        y_bwd = get_channel(grid, channel_name_bwd(response_channel), x_index, y_index, channel_index)
         @assert size(x) == size(x_bwd) == size(y_bwd)
     else
         x_bwd = Float32[]
@@ -308,7 +305,7 @@ function plot_spectrum(grid::SpmGrid, sweep_channel::String, response_channel::S
     end
 
     kwargs_fwd = get_kwargs(kwargs)
-    kwargs_bwd = get_kwargs(kwargs, backward=true)
+    kwargs_bwd = get_kwargs(kwargs, bwd=true)
 
     n = max(2, length(x_index) * length(y_index)) # should be at least 2 to create the cgrad in the next line
     colors_fwd = backend.cgrad([color_spectrum_fwd, color_spectrum_light_fwd], n)
@@ -317,7 +314,7 @@ function plot_spectrum(grid::SpmGrid, sweep_channel::String, response_channel::S
     for (i_x,idx_x) in enumerate(x_index), (i_y,idx_y) in enumerate(y_index)
         x_plot = @view x[:, i_x, i_y]
         y_plot = @view y[:, i_x, i_y]
-        if backward && length(x_bwd) > 0
+        if bwd && length(x_bwd) > 0
             x_plot_bwd = @view x_bwd[:, i_x, i_y]
             y_plot_bwd = @view y_bwd[:, i_x, i_y]
         end
@@ -328,7 +325,7 @@ function plot_spectrum(grid::SpmGrid, sweep_channel::String, response_channel::S
         if !issorted(x_plot) && !issorted(x_plot, rev=true)
             combined_sort!(x_plot, y_plot)
         end
-        if backward && length(x_bwd) > 0
+        if bwd && length(x_bwd) > 0
             x_plot_bwd = x_plot_bwd ./ x_factor
             y_plot_bwd = y_plot_bwd ./ y_factor
             if !issorted(x_plot_bwd) && !issorted(x_plot_bwd, rev=true)
@@ -339,7 +336,7 @@ function plot_spectrum(grid::SpmGrid, sweep_channel::String, response_channel::S
         backend.scatterlines!(ax, x_plot, y_plot,
             linewidth=2, markersize=2, color=colors_fwd[i], label="$(idx_x), $(idx_y)";
             kwargs_fwd...)
-        if backward && length(x_bwd) > 0
+        if bwd && length(x_bwd) > 0
             backend.scatterlines!(x_plot_bwd, y_plot_bwd,
                 linewidth=2, markersize=2, color=colors_bwd[i], label="$(idx_x), $(idx_y) bwd";
                 kwargs_bwd...)
@@ -355,21 +352,21 @@ end
 """
     get_data_line(grid::SpmGrid, response_channel::String,
         x_index::GridRange, y_index::GridRange, channel_index::GridRange=nothing;
-        sweep_channel::String="", backward::Bool=true, observable::Bool=false)
+        sweep_channel::String="", bwd::Bool=true, observable::Bool=false)
 
 Returns the data used for a line plot of `response_channel` along a line in the three-dimensional data spanned by x,y plane and the spectroscopy data.
 Indexing is done through `x_index`, `y_index` and `channel_index` and should be done such that a
 one-dimensional array is obtained.
 It is also possible to plot `response_channel` vs `sweep_channel`
 (which defaults to the sweep signal if not specified) for one point in the grid
-If `backward` is `true` (default), the plot will include data from backward sweep as well (if they exist).
+If `bwd` is `true` (default), the plot will include data from backward sweep as well (if they exist).
 If `observable` is set to `true`, then observables are returned.
 
 Returns a NamedTuple.
 """
 function get_data_line(grid::SpmGrid, response_channel::String,
     x_index::GridRange, y_index::GridRange, channel_index::GridRange=nothing;
-    sweep_channel::String="", backward::Bool=true, observable::Bool=false)
+    sweep_channel::String="", bwd::Bool=true, observable::Bool=false)
     x_index = convert_to_range(x_index)
     y_index = convert_to_range(y_index)
     channel_index = convert_to_range(channel_index)
@@ -380,8 +377,8 @@ function get_data_line(grid::SpmGrid, response_channel::String,
         throw(ArgumentError("Use indexes to obtain a one-dimensional array (e.g. of size 128,1,1). Currently, the array size is $(size(y))."))
     end
 
-    if has_channel(grid, response_channel, backward=true)
-        y_bwd = get_channel(grid, channel_name_backward(response_channel), x_index, y_index, channel_index)
+    if has_channel(grid, response_channel, bwd=true)
+        y_bwd = get_channel(grid, channel_name_bwd(response_channel), x_index, y_index, channel_index)
         @assert size(y_bwd) == size(y)
     else
         x_bwd = Float32[]
@@ -422,7 +419,7 @@ function get_data_line(grid::SpmGrid, response_channel::String,
         end
         x = get_channel(grid, sweep_channel, x_index[], y_index[], channel_index)
         if length(y_bwd) > 0
-            sweep_channel_bwd = channel_name_backward(sweep_channel)
+            sweep_channel_bwd = channel_name_bwd(sweep_channel)
             if sweep_channel in grid.channel_names
                 x_bwd = get_channel(grid, sweep_channel_bwd, x_index[], y_index[], channel_index)
             else
@@ -446,7 +443,7 @@ function get_data_line(grid::SpmGrid, response_channel::String,
     if !issorted(x) && !issorted(x, rev=true)
         combined_sort!(x, y)
     end
-    if backward && length(y_bwd) > 0
+    if bwd && length(y_bwd) > 0
         x_bwd = x_bwd ./ x_factor
         y_bwd = y_bwd ./ y_factor
         if !issorted(x_bwd) && !issorted(x_bwd, rev=true)
@@ -474,7 +471,7 @@ end
 """
     plot_line(grid::SpmGrid, response_channel::String,
         x_index::GridRange, y_index::GridRange, channel_index::GridRange=nothing;
-        sweep_channel::String="", backward::Bool=true, ax::Any=nothing, backend::Module=Main,
+        sweep_channel::String="", bwd::Bool=true, ax::Any=nothing, backend::Module=Main,
         kwargs...)::Nothing
 
 Plots the `response_channel` along a line in the three-dimensional data spanned by x,y plane and the spectroscopy data.
@@ -482,7 +479,7 @@ Indexing is done through `x_index`, `y_index` and `channel_index` and should be 
 one-dimensional array is obtained.
 It is also possible to plot `response_channel` vs `sweep_channel`
 (which defaults to the sweep signal if not specified) for one point in the grid
-If `backward` is `true` (default), the plot will include data from backward sweep as well (if they exist).
+If `bwd` is `true` (default), the plot will include data from backward sweep as well (if they exist).
 
 Before using this function, a [Makie](https://makie.juliaplots.org/) backend (`GLMakie`, `CairoMakie` or `WGLMakie`) should be imported
 and the figure or axis should be set up.
@@ -495,7 +492,7 @@ Keyword arrguments with the suffix `_bwd` will be used for plotting of the backw
 """
 function plot_line(grid::SpmGrid, response_channel::String,
     x_index::GridRange, y_index::GridRange, channel_index::GridRange=nothing;
-    sweep_channel::String="", backward::Bool=true, ax::Any=nothing, backend::Module=Main,
+    sweep_channel::String="", bwd::Bool=true, ax::Any=nothing, backend::Module=Main,
     kwargs...)::Nothing
 
     check_makie_loaded(backend)
@@ -507,18 +504,18 @@ function plot_line(grid::SpmGrid, response_channel::String,
     end
 
     data = get_data_line(grid, response_channel, x_index, y_index, channel_index,
-        sweep_channel=sweep_channel, backward=backward)
+        sweep_channel=sweep_channel, bwd=bwd)
 
     ax.xlabel = data.x_label
     ax.ylabel = data.y_label
     
     kwargs_fwd = get_kwargs(kwargs)
-    kwargs_bwd = get_kwargs(kwargs, backward=true)
+    kwargs_bwd = get_kwargs(kwargs, bwd=true)
 
     backend.scatterlines!(data.xy,
         linewidth=2, markersize=2, color=color_spectrum_fwd, label=data.plot_label;
         kwargs_fwd...)
-    if backward && length(data.xy_bwd) > 0
+    if bwd && length(data.xy_bwd) > 0
         backend.scatterlines!(data.xy_bwd,
             linewidth=2, markersize=2, color=color_spectrum_bwd, label="$(data.plot_label) bwd";
             kwargs_bwd...)
@@ -641,13 +638,13 @@ end
 """
     get_data_plane(grid::SpmGrid, response_channel::String,
         x_index::GridRange, y_index::GridRange, channel_index::GridRange=:;
-        backward::Bool=false, backend::Module=Main, observable::Bool=false)::NamedTuple
+        bwd::Bool=false, backend::Module=Main, observable::Bool=false)::NamedTuple
 
 
 Returns the data used for a plane plot of `response_channel` in the three-dimensional data
 spanned by x,y plane and the sweep signal. Indexing is done through `x_index`, `y_index`
 and `channel_index` and should be done such that a two-dimensional array is obtained.
-If `backward` is set to `true`, then data from the backward sweep is plotted if it exists.
+If `bwd` is set to `true`, then data from the backward sweep is plotted if it exists.
 If `observable` is set to `true`, then observables are returned.
 A Makie backend should be given, too.
     
@@ -655,7 +652,7 @@ Returns a NamedTuple.
 """
 function get_data_plane(grid::SpmGrid, response_channel::String,
     x_index::GridRange, y_index::GridRange, channel_index::GridRange=:;
-    backward::Bool=false, backend::Module=Main, observable::Bool=false)::NamedTuple
+    bwd::Bool=false, backend::Module=Main, observable::Bool=false)::NamedTuple
 
     # for now, the sweep_channel is always the sweep signal
     # it is the only one that has the same values for all points
@@ -665,14 +662,14 @@ function get_data_plane(grid::SpmGrid, response_channel::String,
     y_index = convert_to_range(y_index)
     channel_index = convert_to_range(channel_index)
 
-    if backward
-        if has_channel(grid, response_channel, backward=true)
-            response_channel = channel_name_backward(response_channel)
+    if bwd
+        if has_channel(grid, response_channel, bwd=true)
+            response_channel = channel_name_bwd(response_channel)
         else
             @warn """No backward sweep data for channel "$response_channel"."""
         end
-        if has_channel(grid, sweep_channel, backward=true)
-            sweep_channel = channel_name_backward(sweep_channel)
+        if has_channel(grid, sweep_channel, bwd=true)
+            sweep_channel = channel_name_bwd(sweep_channel)
         else
             @warn """No backward sweep data for channel "$sweep_channel"."""
         end
@@ -763,13 +760,13 @@ end
 """
     plot_plane(grid::SpmGrid, response_channel::String,
         x_index::GridRange, y_index::GridRange, channel_index::GridRange=:;
-        backward::Bool=false, ax::Any=nothing, backend::Module=Main,
+        bwd::Bool=false, ax::Any=nothing, backend::Module=Main,
         kwargs...)::NamedTuple
 
 Plots a plane of `response_channel` in the three-dimensional data spanned by x,y plane and the sweep signal.
 Indexing is done through `x_index`, `y_index` and `channel_index` and should be done such that a
 two-dimensional array is obtained.
-If `backward` is set to `true`, then data from the backward sweep is plotted if it exists.
+If `bwd` is set to `true`, then data from the backward sweep is plotted if it exists.
 
 Before using this function, a [Makie](https://makie.juliaplots.org/) backend (`GLMakie`, `CairoMakie` or `WGLMakie`) should be imported
 and the figure or axis should be set up.
@@ -783,7 +780,7 @@ Returns a NamedTuple containing the heatmap, the colorbar label and the plot lab
 """
 function plot_plane(grid::SpmGrid, response_channel::String,
     x_index::GridRange, y_index::GridRange, channel_index::GridRange=:;
-    backward::Bool=false, ax::Any=nothing, backend::Module=Main,
+    bwd::Bool=false, ax::Any=nothing, backend::Module=Main,
     kwargs...)::NamedTuple
 
     check_makie_loaded(backend)
@@ -795,7 +792,7 @@ function plot_plane(grid::SpmGrid, response_channel::String,
     end
 
     data = get_data_plane(grid, response_channel, x_index, y_index, channel_index,
-        backward=backward, backend=backend)
+        bwd=bwd, backend=backend)
 
     ax.aspect = data.ax_aspect
     ax.xlabel = data.x_label
@@ -811,19 +808,19 @@ end
 """
     get_data_cube(grid::SpmGrid, response_channel::String,
         x_index::GridRange, y_index::GridRange, channel_index::GridRange=:;
-        backward::Bool=false)::NamedTuple
+        bwd::Bool=false)::NamedTuple
 
 Returns the data used for a cube plot of `response_channel` in the three-dimensional data spanned
 by the x,y plane and the sweep signal. Indexing is done through `x_index`, `y_index` and
 `channel_index` and should be done such that a three-dimensional array is obtained.
-If `backward` is set to `true`, then data from the backward sweep is plotted if it exists.
+If `bwd` is set to `true`, then data from the backward sweep is plotted if it exists.
 If `observable` is set to `true`, then observables are returned.
 
 Returns a NamedTuple.
 """
 function get_data_cube(grid::SpmGrid, response_channel::String,
     x_index::GridRange, y_index::GridRange, channel_index::GridRange=:;
-    backward::Bool=false, observable::Bool=false)::NamedTuple
+    bwd::Bool=false, observable::Bool=false)::NamedTuple
 
     # for now, the sweep_channel is always the sweep signal
     # it is the only one that has the same values for all points
@@ -833,14 +830,14 @@ function get_data_cube(grid::SpmGrid, response_channel::String,
     y_index = convert_to_range(y_index)
     channel_index = convert_to_range(channel_index)
 
-    if backward
-        if has_channel(grid, response_channel, backward=true)
-            response_channel = channel_name_backward(response_channel)
+    if bwd
+        if has_channel(grid, response_channel, bwd=true)
+            response_channel = channel_name_bwd(response_channel)
         else
-            @warn """No backward sweep data for channel "$response_channel"."""
+            @warn """No bwd sweep data for channel "$response_channel"."""
         end
-        if has_channel(grid, sweep_channel, backward=true)
-            sweep_channel = channel_name_backward(sweep_channel)
+        if has_channel(grid, sweep_channel, bwd=true)
+            sweep_channel = channel_name_bwd(sweep_channel)
         else
             @warn """No backward sweep data for channel "$sweep_channel"."""
         end
@@ -921,14 +918,14 @@ end
 """
     plot_cube(grid::SpmGrid, response_channel::String,
         x_index::GridRange, y_index::GridRange, channel_index::GridRange=nothing;
-        backward::Bool=false, ax::Any=nothing, backend::Module=Main,
+        bwd::Bool=false, ax::Any=nothing, backend::Module=Main,
         kwargs...)::NamedTuple
 
 
 Plots a cube of `response_channel` in the three-dimensional data spanned by the x,y plane and the sweep signal.
 Indexing is done through `x_index`, `y_index` and `channel_index` and should be done such that a
 three-dimensional array is obtained.
-If `backward` is set to `true`, then data from the backward sweep is plotted if it exists.
+If `bwd` is set to `true`, then data from the backward sweep is plotted if it exists.
 
 Before using this function, a [Makie](https://makie.juliaplots.org/) backend (`GLMakie`, `CairoMakie` or `WGLMakie`) should be imported
 and the figure or axis should be set up.
@@ -942,7 +939,7 @@ Returns a NamedTuple containing the volume-plot, and a colorbar label.
 """
 function plot_cube(grid::SpmGrid, response_channel::String,
     x_index::GridRange, y_index::GridRange, channel_index::GridRange=nothing;
-    backward::Bool=false, ax::Any=nothing, backend::Module=Main,
+    bwd::Bool=false, ax::Any=nothing, backend::Module=Main,
     kwargs...)::NamedTuple
 
     check_makie_loaded(backend)
@@ -954,7 +951,7 @@ function plot_cube(grid::SpmGrid, response_channel::String,
     end
 
     data = get_data_cube(grid, response_channel, x_index, y_index, channel_index,
-        backward=backward)
+        bwd=bwd)
 
     ax.xlabel = data.x_label
     ax.ylabel = data.y_label
