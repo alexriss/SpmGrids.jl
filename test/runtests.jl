@@ -236,6 +236,8 @@ end
     add_channel!((x,y) -> x .- y, grid, "Z rel", "m", "Z", "Sweep Start")
     z = get_channel(grid, "Z")
     @test all(skipnan(get_data(grid, ch"Z rel")) .== skipnan(z .- get_parameter(grid, "Sweep Start")))
+    z = get_channel(grid, bwd"Z")
+    @test all(skipnan(get_data(grid, ch"Z rel"bwd)) .== skipnan(z .- get_parameter(grid, "Sweep Start")))
 end
 
 
@@ -254,7 +256,7 @@ end
 
     @test x_label == "Bias / mV"
     @test y_label == "Frequency Shift / Hz"
-    @test x_factor ≈ 1.0f-3
+    @test x_factor ≈ 1.0f3
     @test y_factor ≈ 1.0f0
 
     fig = CairoMakie.Figure(resolution = (800, 400))
@@ -305,9 +307,11 @@ end
 @testset "plot line" begin
     grid = load_grid("Grid Spectroscopy006.3ds") # contains bwd and fwd, also is stopped after a few lines
 
-    fig = CairoMakie.Figure(resolution = (800, 400));
-    ax = CairoMakie.Axis(fig[1, 1])
+    # fig = CairoMakie.Figure(resolution = (800, 400));
+    # ax = CairoMakie.Axis(fig[1, 1])
+    # this should also work withiout the fig and ax setup
     plot_line(grid, "Frequency Shift", :, 5, 10, color_bwd="#e0e0e0")  # only NaNs in 5th row
+    ax = current_axis()
     @test ax.xlabel[] == "grid x / nm"
     @test ax.ylabel[] == "Frequency Shift / Hz"
 
@@ -397,6 +401,23 @@ end
     @test ax.ylabel[] == "grid y / nm"
     @test r.data_label == "Amplitude / pm"  # there is no bwd channel here
     @test r.plot_label == "Bias=155.12 mV"
+
+    # check some data
+    d = SpmGrids.get_data_plane(grid, "Frequency Shift", :, :, 120)
+    @test d.x[20] ≈ 15.0f0
+    @test d.x[2] ≈ 0.78947365f0
+    @test d.y[6] ≈ 3.9473684f0
+    @test d.data[2,17] ≈ -6.689749f0
+    d = SpmGrids.get_data_plane(grid, "Frequency Shift", 20, :, :)
+    @test d.x[20] ≈ 15.0f0
+    @test d.x[2] ≈ 0.78947365f0
+    @test d.y[6] ≈ 188.18898f0
+    @test d.data[2,17] ≈ -6.0430384f0
+    d = SpmGrids.get_data_plane(grid, "Frequency Shift", 5:15, 3, :)
+    @test d.x[2] ≈ 3.9473684f0
+    @test d.x[11] ≈ 11.052631f0
+    @test d.y[6] ≈ 188.18898f0
+    @test d.data[2,17] ≈ -6.0026183f0
 
     grid = load_grid("Grid Spectroscopy006.3ds")
     fig = CairoMakie.Figure(resolution = (800, 400));
@@ -521,7 +542,7 @@ end
 
     @test content(f[4,1][1,1]).xlabel[] == "grid x / nm"  #  par plane
     @test content(f[4,1][1,1]).ylabel[] == "grid y / nm"
-    @test content(f[4,1][1,2]).limits[] == (103.537f0, 117.78701f0)  # par plane colorbar
+    @test content(f[4,1][1,2]).limits[] == (103.536995f0, 117.787f0)  # par plane colorbar
     @test content(f[4,1][1,2]).label[] == "X / nm"
 
     @test content(f[2,2][1,1]).xlabel[] == "Bias / mV"  #  plot 1
@@ -644,7 +665,7 @@ end
     @test content(f[2,1][1,1]).title[] == "Z=-4.82 nm"
     @test content(f[2,1][1,2]).limits[] == (-0.01f0, 0.01f0)   # plane colorbar
     @test content(f[2,1][1,2]).label[] == "AbsBias [bwd] / V"
-    @test content(f[4,1][1,2]).limits[] == (0.0265926f0, 47.17634f0) # par plane colorbar
+    @test content(f[4,1][1,2]).limits[] == (0.026592601f0, 47.17634f0) # par plane colorbar
     @test content(f[4,1][1,2]).label[] == "AbsExcitation / mV"
     @test content(f[2,2][1,1]).xlabel[] == "Z / m"  #  plot 1
     @test content(f[2,2][1,1]).ylabel[] == "AbsBias / V"

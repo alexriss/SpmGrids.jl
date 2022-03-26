@@ -1,5 +1,7 @@
 const unit_prefixes = ["E", "P", "T", "G", "M", "k", "", "m", "µ", "n", "p", "f", "a"]
 const unit_factors = [1.0f18, 1.0f15, 1.0f12, 1.0f9, 1.0f6, 1.0f3, 1.0, 1.0f-3, 1.0f-6, 1.0f-9, 1.0f-12, 1.0f-15, 1.0f-18]
+# to avoid problems with float precisions, we define those here
+const unit_factors_inv = [1.0f-18, 1.0f-15, 1.0f-12, 1.0f-9, 1.0f-6, 1.0f-3, 1.0, 1.0f3, 1.0f6, 1.0f9, 1.0f12, 1.0f15, 1.0f18]
 
 const color_spectrum_fwd = "#241571"
 const color_spectrum_bwd = "#B80F0A"
@@ -74,17 +76,17 @@ function get_factor_prefix(number::Float32)::Tuple{Float32, String}
     end
 
     unit_prefix = unit_prefixes[end]
-    unit_factor = unit_factors[end]
+    unit_factor_inv = unit_factors_inv[end]
 
     number_abs = abs(number)
     for (i, factor) in enumerate(unit_factors)
         if number_abs >= factor
             unit_prefix = unit_prefixes[i]
-            unit_factor = factor
+            unit_factor_inv = unit_factors_inv[i]
             break
         end
     end
-    return unit_factor, unit_prefix
+    return unit_factor_inv, unit_prefix
 end
 
 
@@ -116,7 +118,7 @@ function format_with_prefix(number::Float32; delimiter::String=" ")::String
         return "$delimiter"
     end
     unit_factor, unit_prefix = get_factor_prefix(number)
-    number = number / unit_factor
+    number = number * unit_factor
     return @sprintf("%0.2f", number) * "$delimiter$unit_prefix"
 end
 
@@ -206,15 +208,27 @@ end
 
 
 """
-    check_makie_loaded()::Nothing
+    check_makie_loaded(backend::Module; axis3::Bool=false)::Nothing
 
 Checks if a [Makie](https://makie.juliaplots.org/) backend is loaded. Throws an error if none is loaded.
+Also sets up a figure and axis if none available.
+If `axis3` is `true` then it sets up a 3D axis.
 """
-function check_makie_loaded(backend::Module)::Nothing
+function check_makie_loaded(backend::Module; axis3::Bool=false)::Nothing
     if !isdefined(backend, :GLMakie) && !isdefined(backend, :CairoMakie) && !isdefined(backend, :WGLMakie)
         error("No Makie backend loaded. Please load either the GL, Cairo or WGL backends. See https://makie.juliaplots.org/ for more information.")
     end
 
+    if backend.current_figure() === nothing
+        backend.Figure()
+    end
+    if backend.current_axis() === nothing
+        if axis3
+            backend.Axis(backend.current_figure())
+        else
+            backend.Axis3(backend.current_figure(), perspectiveness=0.5)
+        end
+    end
     return nothing
 end
 
@@ -236,7 +250,7 @@ end
     plot_spectrum(grid::SpmGrid, sweep_channel::String, response_channel::String,
         x_index::GridRange, y_index::GridRange, channel_index::GridRange=:;
         bwd::Bool=true, ax::Any=nothing, backend::Module=Main,
-        kwargs...)::Nothing
+        kwargs...)::NamedTuple
 
 Plots a line plot of `response_channel` vs `sweep_channel` on the given `x_index` and `y_index`.
 If `sweep_channel` is `""`, then the sweep signal will be used for `sweep_channel`.
@@ -251,11 +265,13 @@ it can also be directly specified via the `backend` keyword argument.
 
 Extra keyword arguments can be specified and will be passed through to the plot function.
 Keyword arrguments with the suffix `_bwd` will be used for plotting of the backward scan.
+
+Returns a NamedTuple.
 """
 function plot_spectrum(grid::SpmGrid, sweep_channel::String, response_channel::String,
     x_index::GridRange, y_index::GridRange, channel_index::GridRange=:;
     bwd::Bool=true, ax::Any=nothing, backend::Module=Main,
-    kwargs...)::Nothing
+    kwargs...)::NamedTuple
 
     check_makie_loaded(backend)
 
@@ -319,33 +335,34 @@ function plot_spectrum(grid::SpmGrid, sweep_channel::String, response_channel::S
             y_plot_bwd = @view y_bwd[i_x, i_y, :]
         end
 
-        x_plot = x_plot ./ x_factor
-        y_plot = y_plot ./ y_factor
+        x_plot = x_plot .* x_factor
+        y_plot = y_plot .* y_factor
         # sort x axis if necessary
         if !issorted(x_plot) && !issorted(x_plot, rev=true)
             combined_sort!(x_plot, y_plot)
         end
         if bwd && length(x_bwd) > 0
-            x_plot_bwd = x_plot_bwd ./ x_factor
-            y_plot_bwd = y_plot_bwd ./ y_factor
+            x_plot_bwd = x_plot_bwd .* x_factor
+            y_plot_bwd = y_plot_bwd .* y_factor
             if !issorted(x_plot_bwd) && !issorted(x_plot_bwd, rev=true)
                 combined_sort!(x_plot_bwd, y_plot_bwd)
             end
         end
 
+        label = "$(idx_x), $(idx_y)"
         backend.scatterlines!(ax, x_plot, y_plot,
-            linewidth=2, markersize=2, color=colors_fwd[i], label="$(idx_x), $(idx_y)";
+            linewidth=2, markersize=2, color=colors_fwd[i], label=label;
             kwargs_fwd...)
         if bwd && length(x_bwd) > 0
             backend.scatterlines!(x_plot_bwd, y_plot_bwd,
-                linewidth=2, markersize=2, color=colors_bwd[i], label="$(idx_x), $(idx_y) bwd";
+                linewidth=2, markersize=2, color=colors_bwd[i], label="$label bwd";
                 kwargs_bwd...)
         end
 
         i+=1
     end
 
-    return nothing
+    return (x_factor=x_factor, y_factor=y_factor)
 end
 
 
@@ -437,15 +454,15 @@ function get_data_line(grid::SpmGrid, response_channel::String,
     y_factor, y_prefix = get_factor_prefix(vcat(y, y_bwd))
     y_label = axis_label(grid, response_channel, y_prefix)
 
-    x = x ./ x_factor
-    y = y ./ y_factor
+    x = x .* x_factor
+    y = y .* y_factor
     # sort x axis if necessary
     if !issorted(x) && !issorted(x, rev=true)
         combined_sort!(x, y)
     end
     if bwd && length(y_bwd) > 0
-        x_bwd = x_bwd ./ x_factor
-        y_bwd = y_bwd ./ y_factor
+        x_bwd = x_bwd .* x_factor
+        y_bwd = y_bwd .* y_factor
         if !issorted(x_bwd) && !issorted(x_bwd, rev=true)
             combined_sort!(x_bwd, y_bwd)
         end
@@ -472,7 +489,7 @@ end
     plot_line(grid::SpmGrid, response_channel::String,
         x_index::GridRange, y_index::GridRange, channel_index::GridRange=nothing;
         sweep_channel::String="", bwd::Bool=true, ax::Any=nothing, backend::Module=Main,
-        kwargs...)::Nothing
+        kwargs...)::NamedTuple
 
 Plots the `response_channel` along a line in the three-dimensional data spanned by x,y plane and the spectroscopy data.
 Indexing is done through `x_index`, `y_index` and `channel_index` and should be done such that a
@@ -489,11 +506,13 @@ it can also be directly specified via the `backend` keyword argument.
 
 Extra keyword arguments can be specified and will be passed through to the plot function.
 Keyword arrguments with the suffix `_bwd` will be used for plotting of the backward scan.    
+
+Returns a NamedTuple.
 """
 function plot_line(grid::SpmGrid, response_channel::String,
     x_index::GridRange, y_index::GridRange, channel_index::GridRange=nothing;
     sweep_channel::String="", bwd::Bool=true, ax::Any=nothing, backend::Module=Main,
-    kwargs...)::Nothing
+    kwargs...)::NamedTuple
 
     check_makie_loaded(backend)
 
@@ -521,7 +540,7 @@ function plot_line(grid::SpmGrid, response_channel::String,
             kwargs_bwd...)
     end
 
-    return nothing
+    return (x_factor=data.x_factor, y_factor=data.y_factor, plot_label=data.plot_label)
 end
 
 
@@ -568,9 +587,9 @@ function get_data_parameter_plane(grid::SpmGrid, parameter::String,
     z_factor, z_prefix = get_factor_prefix(z)
     z_label = axis_parameter_label(grid, parameter, z_prefix)
 
-    x = collect(x) ./ x_factor
-    y = collect(y) ./ y_factor
-    z = collect(z) ./ z_factor
+    x = collect(x) .* x_factor
+    y = collect(y) .* y_factor
+    z = collect(z) .* z_factor
 
     if observable
         return (x=Observable(x), y=Observable(y), data=Observable(z),
@@ -698,7 +717,7 @@ function get_data_plane(grid::SpmGrid, response_channel::String,
         label = "grid y=$point"
 
         ax_aspect = 1
-        z = @views z[:, 1, :]'  # y dimension is 1
+        z = @views z[:, 1, :]  # y dimension is 1
     elseif ny != 1 && nc != 1
         x = gridx_span[y_index]
         y = sweep_span[channel_index]
@@ -712,7 +731,7 @@ function get_data_plane(grid::SpmGrid, response_channel::String,
         label = "grid x=$point"
 
         ax_aspect = 1
-        z = @views z[1, :, :]' # x dimension is 1
+        z = @views z[1, :, :] # x dimension is 1
     else
         x = gridx_span[x_index]
         y = gridy_span[y_index]
@@ -733,9 +752,9 @@ function get_data_plane(grid::SpmGrid, response_channel::String,
     z_factor, z_prefix = get_factor_prefix(z)
     z_label = axis_label(grid, response_channel, z_prefix)
 
-    x = collect(x) ./ x_factor
-    y = collect(y) ./ y_factor
-    z = collect(z) ./ z_factor
+    x = collect(x) .* x_factor
+    y = collect(y) .* y_factor
+    z = collect(z) .* z_factor
 
     if observable
         return (x=Observable(x), y=Observable(y), data=Observable(z),
@@ -870,14 +889,14 @@ function get_data_cube(grid::SpmGrid, response_channel::String,
 
     data_factor, data_prefix = get_factor_prefix(data)
     data_label = axis_label(grid, response_channel, data_prefix)
-    data_plot = data ./ data_factor
+    data_plot = data .* data_factor
 
     # get rid of NaN values in the sweep signal
     sel = findall(!isnan, z)
-    z = (z ./ z_factor)[sel]
+    z = (z .* z_factor)[sel]
     data_plot = data_plot[:, :, sel]
-    x = collect(x ./ x_factor)
-    y = collect(y ./ y_factor)
+    x = collect(x .* x_factor)
+    y = collect(y .* y_factor)
 
     # we have to sort the z values, because toehrwise there is a bug in the volume plot
     # see https://github.com/JuliaPlots/ Makie.jl/issues/1781
