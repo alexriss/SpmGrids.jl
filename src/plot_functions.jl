@@ -224,10 +224,15 @@ function check_makie_loaded(backend::Module; axis3::Bool=false)::Nothing
     end
     if backend.current_axis() === nothing
         if axis3
-            backend.Axis(backend.current_figure())
+            backend.Axis3(backend.current_figure()[1,1], perspectiveness=0.5)
         else
-            backend.Axis3(backend.current_figure(), perspectiveness=0.5)
+            backend.Axis(backend.current_figure()[1,1])
         end
+    end
+    if axis3 && typeof(backend.current_axis()) != backend.Axis3
+        backend.Axis3(backend.current_figure()[1,1], perspectiveness=0.5)
+    elseif !axis3 && typeof(backend.current_axis()) != backend.Axis
+        backend.Axis(backend.current_figure()[1,1])
     end
     return nothing
 end
@@ -966,7 +971,7 @@ function plot_cube(grid::SpmGrid, response_channel::String,
     bwd::Bool=false, ax::Any=nothing, backend::Module=Main,
     kwargs...)::NamedTuple
 
-    check_makie_loaded(backend)
+    check_makie_loaded(backend, axis3=true)
 
     if ax === nothing
         ax = backend.current_axis()

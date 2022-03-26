@@ -259,13 +259,15 @@ end
     @test x_factor ≈ 1.0f3
     @test y_factor ≈ 1.0f0
 
-    fig = CairoMakie.Figure(resolution = (800, 400))
-    ax = CairoMakie.Axis(fig[1, 1])
+    # fig = CairoMakie.Figure(resolution = (800, 400))
+    # ax = CairoMakie.Axis(fig[1, 1])
+    # should set up automatically
     plot_spectrum(grid, "Z", "Frequency Shift", 5, 1:10, backend=CairoMakie)
     plot_spectrum(grid, "Z", "Frequency Shift", 5:6, 1)
     plot_spectrum(grid, "Z", "Frequency Shift", :, 5:6, 100:120)
     plot_spectrum(grid, "Z", "Frequency Shift", 5:6, 1:10)
 
+    ax = current_axis()
     @test ax.ylabel[] == "Frequency Shift / Hz"
     @test ax.xlabel[] == "Z / nm"
 
@@ -490,11 +492,14 @@ end
 
 @testset "plot cube" begin
     grid = load_grid("Grid Spectroscopy006.3ds") # contains bwd and fwd, also is stopped after a few lines
-    fig = CairoMakie.Figure(resolution = (800, 400));
-    ax = CairoMakie.Axis3(fig[1, 1], perspectiveness=0.5)
-
+    
+    # fig = CairoMakie.Figure(resolution = (800, 400));
+    # ax = CairoMakie.Axis3(fig[1, 1], perspectiveness=0.5)
+    # should auto-setup an Axis3
     r = plot_cube(grid, "Amplitude", :, :, :,
         bwd=true, colormap=:Spectral_11, backend=CairoMakie)
+    fig = current_figure()
+    ax = current_axis()
     Colorbar(fig[1, 2], r.plot, label=r.data_label)
 
     @test ax.xlabel[] == "grid x / nm"
