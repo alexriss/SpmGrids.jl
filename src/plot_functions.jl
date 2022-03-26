@@ -650,7 +650,10 @@ function plot_parameter_plane(grid::SpmGrid, parameter::String,
     hm = backend.heatmap!(data.x, data.y, data.data,
         colormap=:grays, colorrange=data.colorrange, label=data.plot_label; kwargs...)
 
-    return (plot=hm, data_label=data.data_label, plot_label=data.plot_label)
+    return (
+        x_factor=data.x_factor, y_factor=data.y_factor, data_factor=data.data_factor,
+        plot=hm, data_label=data.data_label, plot_label=data.plot_label
+    )
 end
 
 
@@ -820,7 +823,10 @@ function plot_plane(grid::SpmGrid, response_channel::String,
     hm = backend.heatmap!(data.x, data.y, data.data,
         colormap=:grays, colorrange=data.colorrange, label=data.plot_label; kwargs...)
 
-    return (plot=hm, data_label=data.data_label, plot_label=data.plot_label)
+    return (
+        x_factor=data.x_factor, y_factor=data.y_factor, data_factor=data.data_factor,
+        plot=hm, data_label=data.data_label, plot_label=data.plot_label
+    )
 end
 
 
@@ -988,5 +994,9 @@ function plot_cube(grid::SpmGrid, response_channel::String,
             kwargs...)
     end
 
-    return (plot=vol, data_label=data.data_label)
+    return (
+        x_factor=data.x_factor, y_factor=data.y_factor, z_factor=data.z_factor,
+        data_factor=data.data_factor,
+        plot=vol, data_label=data.data_label
+    )
 end

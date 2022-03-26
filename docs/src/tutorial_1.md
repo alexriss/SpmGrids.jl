@@ -191,7 +191,7 @@ Colorbar(g2[1, 2], r2.plot, label=r2.data_label)
 
 # mark 15th row in the first plot
 px, py = xyindex_to_point(grid, 1, 15)
-hlines!(ax1, py * 1e9, color=:red)  # we need to convert to nm
+hlines!(ax1, py * r1.y_factor, color=:red)  # we need to convert to nm
 
 fig
 ```
