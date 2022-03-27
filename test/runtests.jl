@@ -488,6 +488,15 @@ end
     @test ax.ylabel[] == "grid y / nm"
     @test r.data_label == "Scan:Excitation / V"
     @test r.plot_label == "Scan:Excitation"
+
+    # wrong type of axis, should give a warning
+    fig = CairoMakie.Figure(resolution = (800, 400));
+    ax = CairoMakie.Axis3(fig[1, 1], perspectiveness=0.5)
+    logs, value = Test.collect_test_logs() do
+        r = plot_parameter_plane(grid, "Scan:Excitation")
+    end
+    @test occursin("is not a 2D axis", logs[1].message)
+    @test occursin("Please", logs[1].message)
 end
 
 @testset "plot cube" begin
@@ -496,8 +505,14 @@ end
     # fig = CairoMakie.Figure(resolution = (800, 400));
     # ax = CairoMakie.Axis3(fig[1, 1], perspectiveness=0.5)
     # should auto-setup an Axis3
-    r = plot_cube(grid, "Amplitude", :, :, :,
-        bwd=true, colormap=:Spectral_11, backend=CairoMakie)
+    logs, value = Test.collect_test_logs() do
+        r = plot_cube(grid, "Amplitude", :, :, :,
+            bwd=true, colormap=:Spectral_11, backend=CairoMakie)
+    end
+    # it uses the previous Axis, so there will be a warning
+    @test occursin("is not a 3D axis", logs[1].message)
+    @test occursin("Please", logs[1].message)
+
     fig = current_figure()
     ax = current_axis()
     Colorbar(fig[1, 2], r.plot, label=r.data_label)
@@ -521,6 +536,8 @@ end
     @test r.data_label == "Bias / V"
 
     # Only NaNs
+    fig = CairoMakie.Figure(resolution = (800, 400));
+    ax = CairoMakie.Axis3(fig[1, 1], perspectiveness=0.5)
     r = plot_cube(grid, "Bias", :, 5:32, :,
         colormap=:Spectral_11, backend=CairoMakie)
 
@@ -529,6 +546,15 @@ end
     @test ax.ylabel[] == "grid y / nm"
     @test ax.zlabel[] == "Z / m"
     @test r.data_label == "Bias / V"
+
+    # wrong type of axis, should give a warning
+    fig = CairoMakie.Figure(resolution = (800, 400));
+    ax = CairoMakie.Axis(fig[1, 1], perspectiveness=0.5)
+    logs, value = Test.collect_test_logs() do
+        plot_cube(grid, "Bias", backend=CairoMakie)
+    end
+    @test occursin("is not a 3D axis", logs[1].message)
+    @test occursin("Please", logs[1].message)
 end
 
 @testset "interactive" begin
@@ -587,8 +613,6 @@ end
     @test content(f[4,2][1,1]).xlabel[] == "Bias / mV"  #  plot 2
     @test content(f[4,2][1,1]).ylabel[] == "Phase / mdeg"
     @test content(f[4,2][1,1]).title[] == "grid x=3.95 nm, grid y=789.47 pm"
-
-
 
     grid = load_grid("Grid Spectroscopy006.3ds")
     add_channel!(x -> abs.(x), grid, "AbsCurrent", "A", "Current", skip_bwd=true)
@@ -676,4 +700,40 @@ end
     @test content(f[2,2][1,1]).ylabel[] == "AbsBias / V"
     @test content(f[4,2][1,1]).xlabel[] == "Z / m"  #  plot 2
     @test content(f[4,2][1,1]).ylabel[] == "AbsCurrent / A"
+end
+
+@testset "domain functions" begin
+    grid = load_grid("Grid Spectroscopy002.3ds")
+    
+    # manually create backwards channels
+    add_channel!(grid, bwd"Frequency Shift", "Hz", get_channel(grid, "Frequency Shift"))
+    add_channel!(grid, bwd"Bias", "V", get_channel(grid, "Bias"))
+
+    fit_KPFM!(grid, "Frequency Shift")
+
+    d = get_data(grid, "KPFM:Bias")
+    @test d[2,12] ≈ 0.1495999f0
+    @test d[7, 16] ≈ 0.13154882f0
+
+    d = get_data(grid, "KPFM:Frequency Shift")
+    @test d[9, 2] ≈ -5.985143f0
+    @test d[12, 8] ≈ -6.070098f0
+
+    d = get_data(grid, "KPFM:Fit")
+    @test d[1,6,123] ≈ -6.57627f0
+    @test d[3,9,12] ≈ -6.0692973f0
+    d = get_data(grid, bwd"KPFM:Fit")
+    @test d[1,6,123] ≈ -6.57627f0
+    @test d[3,9,12] ≈ -6.0692973f0
+
+    d = get_data(grid, "KPFM:Residuals")
+    @test d[1,2,98] ≈ 0.02949953f0
+    @test  d[7,3,2] ≈ -0.04449749f0
+    d = get_data(grid, bwd"KPFM:Residuals")
+    @test d[1,2,98] ≈ 0.02949953f0
+    @test  d[7,3,2] ≈ -0.04449749f0
+
+    d = get_data(grid, "KPFM:Residuals AbsSum")
+    @test d[5,1] ≈ 1.6319232f0
+    @test d[12,6] ≈ 1.987781f0
 end

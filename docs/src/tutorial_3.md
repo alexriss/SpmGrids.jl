@@ -1,6 +1,6 @@
 # Tutorial 3: Real life examples
 
-## Example: KPFM
+## Example: KPFM _(manual)_
 
 Let's look at a real world example: [Kelvin Probe Force Microscopy (KPFM)](https://en.wikipedia.org/wiki/Kelvin_probe_force_microscope). The manual way to conduct such an experiment is to scan over a grid and sweep the bias at each point. The "Frequency Shift" vs. "Bias" can then be fitted to a parabola. We will denote the x and y positions of the maximum of this parabola as `"KPFM:Bias"` and `"KPFM:Frequency Shift"`, respectively.
 
@@ -80,4 +80,60 @@ ax = Axis(fig[2,1])
 r = plot_line(grid, "KPFM:Residuals", 5, 5, :, backend=CairoMakie, color=:gray)
 
 fig
+```
+
+## Example: KPFM _(auto)_
+
+I can see that some might want this to be more convenient. This is why SpmGrids includes a function to do this automatically. You can do KPFM fits in just a few lines. Below is an example that
+launches the [interactive display](@ref interactive_widget) at the end.
+
+```julia
+using SpmGrids
+grid = load_grid("Bias_spectroscopy.3ds")
+fit_KPFM!(grid, "Frequency Shift") 
+interactive_display(grid, colormap=:bluegreenyellow)
+```
+
+We do not even need to specify the sweep channel. But we could - if needed. The function also handles the dreaded `NaN` values. And of course it does the fit also for backwards sweeps if they exist.
+
+Let's look how to use it in practice and make a plot.
+
+```@example kpfm_auto
+using SpmGrids
+using CairoMakie
+
+grid = load_grid("Bias_spectroscopy.3ds")
+fit_KPFM!(grid, "Frequency Shift") 
+
+kpfm_bias = get_parameter(grid, "KPFM:Bias")
+
+fig = Figure(resolution = (800, 330))
+
+# plot the position of the KPFM fit for each grid point
+ax1 = Axis(fig[1,1])
+r1 = plot_parameter_plane(grid, "KPFM:Bias", backend=CairoMakie, colormap=:thermal)
+Colorbar(fig[1, 2], r1.plot, label=r1.data_label)
+
+# plot two selected spectra and their fits
+ax2 = Axis(fig[1, 3])
+points = [(2,2), (8, 17)]
+colors = ["#213489", "#d96d69"]
+markercolors = [:black, :white]
+
+for (p,c, mc) in zip(points, colors, markercolors)
+    # plot Frequency Shift and fit
+    r2 = plot_line(grid, "KPFM:Fit", p[1], p[2], :, backend=CairoMakie, color=c)
+    r2 = plot_line(grid, "Frequency Shift", p[1], p[2], :, backend=CairoMakie, color=c*"a0")
+
+    # vertical line
+    vlines!(ax2, kpfm_bias[p[1], p[2]] * r2.x_factor, color=c*"a0", linestyle=:dash)
+
+    # mark points in the plane plot
+    xycoords = xyindex_to_point(grid, p...) .* [r1.x_factor, r1.y_factor]
+    scatter!(ax1, Point2(xycoords), marker=:cross, 
+        color=mc, strokecolor=mc, 
+        strokewidth=0.5, markersize=12)
+end
+
+fig 
 ```

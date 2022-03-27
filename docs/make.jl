@@ -15,9 +15,9 @@ makedocs(;
     ),
     pages=[
         "Introduction" => "index.md",
-        "Tutorial 1" => "tutorial_1.md",
-        "Tutorial 2" => "tutorial_2.md",
-        "Tutorial 3" => "tutorial_3.md",
+        "Tutorial 1: Basics" => "tutorial_1.md",
+        "Tutorial 2: Data manipulation" => "tutorial_2.md",
+        "Tutorial 3: Real life" => "tutorial_3.md",
 		"Reference" => "reference.md"
     ],
 )

@@ -14,6 +14,7 @@ export get_data, get_channel, get_parameter, add_channel!, add_parameter!
 export xyindex_to_point
 export plot_spectrum, plot_line, plot_plane, plot_cube, plot_parameter_plane
 export interactive_display
+export fit_KPFM!
 
 const VERSION = VersionNumber(TOML.parsefile(joinpath(@__DIR__, "../Project.toml"))["version"])
 
@@ -66,6 +67,7 @@ SpmGrid(filename::String) = SpmGrid(
 
 include("plot_functions.jl")
 include("interactive_functions.jl")
+include("domain_functions.jl")
 
 
 Base.show(io::IO, ::MIME"text/plain", g::SpmGrid) = print(io, "SpmGrid(\"", g.filename, "\", ",

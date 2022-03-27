@@ -269,8 +269,8 @@ end
 Plots a line from the NamedTuple `x` vs `y` and `x_bwd` vs `y_bwd` on Axis `ax`
 """
 function plot_line(data::NamedTuple, ax::Any, backend::Module; bwd::Bool=true, kwargs...)::Nothing
-    check_makie_loaded(backend)
-    backend.current_axis!(ax)
+    check_makie_loaded(backend, ax)
+    ax = backend.current_axis()
 
     kwargs_fwd = get_kwargs(kwargs)
     kwargs_bwd = get_kwargs(kwargs, bwd=true)
@@ -294,8 +294,8 @@ Plots a plane from the NamedTuple `data` on Axis `ax`. A colorbar is also plotte
 A Makie backend should be given and extra keyword arguments can be provided.
 """
 function plot_plane(data::NamedTuple, ax::Any, ax_cb::Any, backend::Module; kwargs...)::Nothing
-    check_makie_loaded(backend)
-    backend.current_axis!(ax)
+    check_makie_loaded(backend, ax)
+    ax = backend.current_axis()
 
     ax.xlabel = data.x_label[]
     ax.ylabel = data.y_label[]
@@ -319,8 +319,8 @@ Plots a cube from the NamedTuple `data` on Axis `ax`. A colorbar is also plotted
 A Makie backend should be given and extra keyword arguments can be provided.
 """
 function plot_cube(data::NamedTuple, ax::Any, ax_cb::Any, backend::Module; kwargs...)::Nothing
-    check_makie_loaded(backend)
-    backend.current_axis!(ax)
+    check_makie_loaded(backend, ax, axis3=true)
+    ax = backend.current_axis()
 
     ax.xlabel = data.x_label[]
     ax.ylabel = data.y_label[]

@@ -211,8 +211,7 @@ grid = load_grid("Bias_spectroscopy.3ds")
 fig = Figure(resolution = (500, 400));
 ax = Axis3(fig[1, 1], perspectiveness=0.5)
 
-r = plot_cube(grid, "Current", :, :, :,
-    colormap=:Spectral_11, backend=GLMakie)
+r = plot_cube(grid, "Current", colormap=:Spectral_11, backend=GLMakie)
 Colorbar(fig[1,2], r.plot, label=r.data_label)
 
 fig

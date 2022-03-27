@@ -208,13 +208,13 @@ end
 
 
 """
-    check_makie_loaded(backend::Module; axis3::Bool=false)::Nothing
+    check_makie_loaded(backend::Module, ax::Any=nothing; axis3::Bool=false)::Nothing
 
 Checks if a [Makie](https://makie.juliaplots.org/) backend is loaded. Throws an error if none is loaded.
-Also sets up a figure and axis if none available.
+Sets the `current_axis` to `ax`. Also sets up a figure and axis if necessary.
 If `axis3` is `true` then it sets up a 3D axis.
 """
-function check_makie_loaded(backend::Module; axis3::Bool=false)::Nothing
+function check_makie_loaded(backend::Module, ax::Any=nothing; axis3::Bool=false)::Nothing
     if !isdefined(backend, :GLMakie) && !isdefined(backend, :CairoMakie) && !isdefined(backend, :WGLMakie)
         error("No Makie backend loaded. Please load either the GL, Cairo or WGL backends. See https://makie.juliaplots.org/ for more information.")
     end
@@ -222,18 +222,27 @@ function check_makie_loaded(backend::Module; axis3::Bool=false)::Nothing
     if backend.current_figure() === nothing
         backend.Figure()
     end
-    if backend.current_axis() === nothing
+
+    if backend.current_axis() === nothing && ax === nothing
         if axis3
             backend.Axis3(backend.current_figure()[1,1], perspectiveness=0.5)
         else
             backend.Axis(backend.current_figure()[1,1])
         end
+    elseif ax === nothing
+        ax = backend.current_axis()
+    else
+        backend.current_axis!(ax)
     end
+
     if axis3 && typeof(backend.current_axis()) != backend.Axis3
+        @warn "The current axis is not a 3D axis. Please use a 3D axis for 3D plots. Generating a 3D axis at [1,1]."
         backend.Axis3(backend.current_figure()[1,1], perspectiveness=0.5)
     elseif !axis3 && typeof(backend.current_axis()) != backend.Axis
+        @warn "The current axis is not a 2D axis. Please use a 2D axis for 2D plots. Generating a 2D axis at [1,1]."
         backend.Axis(backend.current_figure()[1,1])
     end
+
     return nothing
 end
 
@@ -278,13 +287,8 @@ function plot_spectrum(grid::SpmGrid, sweep_channel::String, response_channel::S
     bwd::Bool=true, ax::Any=nothing, backend::Module=Main,
     kwargs...)::NamedTuple
 
-    check_makie_loaded(backend)
-
-    if ax === nothing
-        ax = backend.current_axis()
-    else
-        backend.current_axis!(ax)
-    end
+    check_makie_loaded(backend, ax)
+    ax = backend.current_axis()
 
     if sweep_channel === ""
         sweep_channel = grid.sweep_signal
@@ -519,13 +523,8 @@ function plot_line(grid::SpmGrid, response_channel::String,
     sweep_channel::String="", bwd::Bool=true, ax::Any=nothing, backend::Module=Main,
     kwargs...)::NamedTuple
 
-    check_makie_loaded(backend)
-
-    if ax === nothing
-        ax = backend.current_axis()
-    else
-        backend.current_axis!(ax)
-    end
+    check_makie_loaded(backend, ax)
+    ax = backend.current_axis()
 
     data = get_data_line(grid, response_channel, x_index, y_index, channel_index,
         sweep_channel=sweep_channel, bwd=bwd)
@@ -551,7 +550,7 @@ end
 
 """
     get_data_parameter_plane(grid::SpmGrid, parameter::String,
-        x_index::GridRange, y_index::GridRange;
+        x_index=:::GridRange, y_index=:::GridRange;
         backend::Module=Main, observable::Bool=false)::NamedTuple
 
 
@@ -564,7 +563,7 @@ A Makie backend should be given, too.
 Returns a NamedTuple.
 """
 function get_data_parameter_plane(grid::SpmGrid, parameter::String,
-    x_index::GridRange, y_index::GridRange;
+    x_index::GridRange=:, y_index::GridRange=:;
     backend::Module=Main, observable::Bool=false)::NamedTuple
 
     x_index = convert_to_range(x_index)
@@ -616,7 +615,7 @@ end
 
 """
 plot_parameter_plane(grid::SpmGrid, parameter::String,
-        x_index::GridRange, y_index::GridRange;
+        x_index::GridRange=:, y_index::GridRange=:;
         ax::Any=nothing, backend::Module=Main,
         kwargs...)::NamedTuple
 
@@ -634,17 +633,12 @@ Extra keyword arguments can be specified and will be passed through to the plot 
 Returns a NamedTuple containing the heatmap, the colorbar label and the plot label.
 """
 function plot_parameter_plane(grid::SpmGrid, parameter::String,
-    x_index::GridRange, y_index::GridRange;
+    x_index::GridRange=:, y_index::GridRange=:;
     ax::Any=nothing, backend::Module=Main,
     kwargs...)::NamedTuple
 
-    check_makie_loaded(backend)
-
-    if ax === nothing
-        ax = backend.current_axis()
-    else
-        backend.current_axis!(ax)
-    end
+    check_makie_loaded(backend, ax)
+    ax = backend.current_axis()
 
     data = get_data_parameter_plane(grid, parameter, x_index, y_index, backend=backend)
 
@@ -810,13 +804,8 @@ function plot_plane(grid::SpmGrid, response_channel::String,
     bwd::Bool=false, ax::Any=nothing, backend::Module=Main,
     kwargs...)::NamedTuple
 
-    check_makie_loaded(backend)
-
-    if ax === nothing
-        ax = backend.current_axis()
-    else
-        backend.current_axis!(ax)
-    end
+    check_makie_loaded(backend, ax)
+    ax = backend.current_axis()
 
     data = get_data_plane(grid, response_channel, x_index, y_index, channel_index,
         bwd=bwd, backend=backend)
@@ -837,7 +826,7 @@ end
 
 """
     get_data_cube(grid::SpmGrid, response_channel::String,
-        x_index::GridRange, y_index::GridRange, channel_index::GridRange=:;
+        x_index::GridRange=:, y_index::GridRange=:, channel_index::GridRange=:;
         bwd::Bool=false)::NamedTuple
 
 Returns the data used for a cube plot of `response_channel` in the three-dimensional data spanned
@@ -849,7 +838,7 @@ If `observable` is set to `true`, then observables are returned.
 Returns a NamedTuple.
 """
 function get_data_cube(grid::SpmGrid, response_channel::String,
-    x_index::GridRange, y_index::GridRange, channel_index::GridRange=:;
+    x_index::GridRange=:, y_index::GridRange=:, channel_index::GridRange=:;
     bwd::Bool=false, observable::Bool=false)::NamedTuple
 
     # for now, the sweep_channel is always the sweep signal
@@ -946,7 +935,7 @@ end
 
 """
     plot_cube(grid::SpmGrid, response_channel::String,
-        x_index::GridRange, y_index::GridRange, channel_index::GridRange=nothing;
+        x_index::GridRange=:, y_index::GridRange=:, channel_index::GridRange=:;
         bwd::Bool=false, ax::Any=nothing, backend::Module=Main,
         kwargs...)::NamedTuple
 
@@ -967,17 +956,12 @@ Extra keyword arguments can be specified and will be passed through to the plot 
 Returns a NamedTuple containing the volume-plot, and a colorbar label.
 """
 function plot_cube(grid::SpmGrid, response_channel::String,
-    x_index::GridRange, y_index::GridRange, channel_index::GridRange=nothing;
+    x_index::GridRange=:, y_index::GridRange=:, channel_index::GridRange=:;
     bwd::Bool=false, ax::Any=nothing, backend::Module=Main,
     kwargs...)::NamedTuple
 
-    check_makie_loaded(backend, axis3=true)
-
-    if ax === nothing
-        ax = backend.current_axis()
-    else
-        backend.current_axis!(ax)
-    end
+    check_makie_loaded(backend, ax, axis3=true)
+    ax = backend.current_axis()
 
     data = get_data_cube(grid, response_channel, x_index, y_index, channel_index,
         bwd=bwd)
