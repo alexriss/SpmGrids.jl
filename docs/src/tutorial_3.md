@@ -117,7 +117,7 @@ Colorbar(fig[1, 2], r1.plot, label=r1.data_label)
 # plot two selected spectra and their fits
 ax2 = Axis(fig[1, 3])
 points = [(2,2), (8, 17)]
-colors = ["#213489", "#d96d69"]
+colors = ["#d96d69", "#213489"]
 markercolors = [:black, :white]
 
 for (p,c, mc) in zip(points, colors, markercolors)
