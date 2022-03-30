@@ -1,7 +1,7 @@
 const unit_prefixes = ["E", "P", "T", "G", "M", "k", "", "m", "µ", "n", "p", "f", "a"]
-const unit_factors = [1.0f18, 1.0f15, 1.0f12, 1.0f9, 1.0f6, 1.0f3, 1.0, 1.0f-3, 1.0f-6, 1.0f-9, 1.0f-12, 1.0f-15, 1.0f-18]
+const unit_factors = [1.0e18, 1.0e15, 1.0e12, 1.0e9, 1.0e6, 1.0e3, 1.0, 1.0e-3, 1.0e-6, 1.0e-9, 1.0e-12, 1.0e-15, 1.0e-18]
 # to avoid problems with float precisions, we define those here
-const unit_factors_inv = [1.0f-18, 1.0f-15, 1.0f-12, 1.0f-9, 1.0f-6, 1.0f-3, 1.0, 1.0f3, 1.0f6, 1.0f9, 1.0f12, 1.0f15, 1.0f18]
+const unit_factors_inv = [1.0e-18, 1.0e-15, 1.0e-12, 1.0e-9, 1.0e-6, 1.0e-3, 1.0, 1.0e3, 1.0e6, 1.0e9, 1.0e12, 1.0e15, 1.0e18]
 
 const color_spectrum_fwd = "#241571"
 const color_spectrum_bwd = "#B80F0A"
@@ -34,11 +34,11 @@ end
 
 
 """
-    combined_sort!(arr1::Vector{Float32}, arr2::Vector{Float32})::Nothing
+    combined_sort!(arr1::Vector{Float64}, arr2::Vector{Float64})::Nothing
 
 Sorts the values in two arrays by the values in the first one.
 """
-function combined_sort!(arr1::Vector{Float32}, arr2::Vector{Float32})::Nothing
+function combined_sort!(arr1::Vector{Float64}, arr2::Vector{Float64})::Nothing
     p = sortperm(arr1)
     arr1 .= arr1[p]
     arr2 .= arr2[p]
@@ -62,17 +62,17 @@ end
 
 
 """
-    get_factor_prefix(number::Float32)::Tuple{Float32, String}
+    get_factor_prefix(number::Float64)::Tuple{Float64, String}
 
 Determines the best SI unit prefix for the given `number`.
 Returns a tuple of the factor and the prefix.
 """
-function get_factor_prefix(number::Float32)::Tuple{Float32, String}
+function get_factor_prefix(number::Float64)::Tuple{Float64, String}
     # The format function of the Formatting library supports some of the SI prefixes, but
     # 1. only down to pico, and 2. it will not convert 0.05 as 50.0m (instead as 0.0)
 
-    if number == 0.0f0  # use `==` because 0.0f0 !== -0.0f0
-        return 1.0f0, ""
+    if number == 0.  # use `==` because 0. !== -0.
+        return 1., ""
     end
 
     unit_prefix = unit_prefixes[end]
@@ -91,30 +91,30 @@ end
 
 
 """
-    function get_factor_prefix(numbers::Array{Float32})::Tuple{Float32, String}
+    function get_factor_prefix(numbers::Array{Float64})::Tuple{Float64, String}
 
 Determines the best SI unit prefix for a given array `numbers`.
 Returns a tuple of the factor and the prefix.
 """
-function get_factor_prefix(numbers::AbstractArray{<:Float32})::Tuple{Float32, String}
+function get_factor_prefix(numbers::AbstractArray{<:Float64})::Tuple{Float64, String}
     abs_numbers = abs.(skipnan(numbers))
     if length(abs_numbers) === 0
-        return 1f0, ""
+        return 1.0, ""
     end
     return get_factor_prefix(maximum(abs_numbers))
 end
 
 
 """
-    format_with_prefix(number::Float32; delimiter::String="")::String
+    format_with_prefix(number::Float64; delimiter::String="")::String
 
 formats a number to a notation that uses SI prefixes.
 """
-function format_with_prefix(number::Float32; delimiter::String=" ")::String
-    if number === 0f0
+function format_with_prefix(number::Float64; delimiter::String=" ")::String
+    if number === 0.
         return "0$delimiter"
     end
-    if number === NaN32
+    if number === NaN
         return "$delimiter"
     end
     unit_factor, unit_prefix = get_factor_prefix(number)
@@ -124,18 +124,18 @@ end
 
 
 """
-    get_sweep_span(data::Array{Float32,3})::Vector{Float32}
+    get_sweep_span(data::Array{Float64,3})::Vector{Float64}
 
 Extracts the maximum valid range of the sweep signal (first dimension in `data`),
 i.e. it picks the values along this axis that are not NaNs.
 It also checks if all values are equal across the other dimensions.
 """
-function get_sweep_span(data::AbstractArray{Float32,3})::Vector{Float32}
+function get_sweep_span(data::AbstractArray{Float64,3})::Vector{Float64}
     res = data[1, 1, :]
     for i in 1:length(res)
         dataf = filter(!isnan, @view data[:, :, i])
         if length(dataf) == 0
-            res[i] = NaN32
+            res[i] = NaN
         else
             res[i] = dataf[1]
             if !all(dataf .== dataf[1])
@@ -148,14 +148,14 @@ end
 
 
 """
-    get_range(data::Array{Float32})::Tuple{Float32,Float32}
+    get_range(data::Array{Float64})::Tuple{Float64,Float64}
 
 Calculates range (i.e. min and max) of data. If all data is the same, the range is expanded.
 """
-function get_range(data::Array{Float32})::Tuple{Float32,Float32}
+function get_range(data::Array{Float64})::Tuple{Float64,Float64}
     data = skipnan(data)
     if length(data) === 0
-        data = [0f0]
+        data = [0.]
     end
     data_min = minimum(data)
     data_max = maximum(data)
@@ -248,11 +248,11 @@ end
 
 
 """
-    xyindex_to_point(grid::SpmGrid, index_x::Int, index_y)::Tuple{Float32,Float32}
+    xyindex_to_point(grid::SpmGrid, index_x::Int, index_y)::Tuple{Float64,Float64}
 
 Converts `index_x` and `index_y` of `grid` to point coordinates in physical units.
 """
-function xyindex_to_point(grid::SpmGrid, index_x::Int, index_y::Int)::Tuple{Float32,Float32}
+function xyindex_to_point(grid::SpmGrid, index_x::Int, index_y::Int)::Tuple{Float64,Float64}
     gridx_span = range(0, grid.size[1], length=grid.pixelsize[1])
     gridy_span = range(0, grid.size[2], length=grid.pixelsize[2])
 
@@ -308,8 +308,8 @@ function plot_spectrum(grid::SpmGrid, sweep_channel::String, response_channel::S
         y_bwd = get_channel(grid, channel_name_bwd(response_channel), x_index, y_index, channel_index)
         @assert size(x) == size(x_bwd) == size(y_bwd)
     else
-        x_bwd = Float32[]
-        y_bwd = Float32[]
+        x_bwd = Float64[]
+        y_bwd = Float64[]
     end
 
     x_all = vcat(vec(x), vec(x_bwd))
@@ -407,8 +407,8 @@ function get_data_line(grid::SpmGrid, response_channel::String,
         y_bwd = get_channel(grid, channel_name_bwd(response_channel), x_index, y_index, channel_index)
         @assert size(y_bwd) == size(y)
     else
-        x_bwd = Float32[]
-        y_bwd = Float32[]
+        x_bwd = Float64[]
+        y_bwd = Float64[]
     end
 
     nx, ny, nc = size(y)

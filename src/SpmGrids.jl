@@ -6,6 +6,7 @@ using Dates
 using GeometryBasics
 using Observables
 using Printf
+using SpmSpectroscopy
 using TOML
 
 export @bwd_str, @ch_str, @par_str
@@ -14,7 +15,7 @@ export get_data, get_channel, get_parameter, add_channel!, add_parameter!
 export xyindex_to_point
 export plot_spectrum, plot_line, plot_plane, plot_cube, plot_parameter_plane
 export interactive_display
-export fit_KPFM!
+export fit_KPFM!, deconvolve_force!
 
 const VERSION = VersionNumber(TOML.parsefile(joinpath(@__DIR__, "../Project.toml"))["version"])
 
@@ -36,19 +37,19 @@ mutable struct SpmGrid
 
     sweep_signal::String  # unit is in dict `channel_units`
     points::Int
-    data::Array{Float32}
+    data::Array{Float64}
 
     # generated data stored here
-    generated_channels::OrderedDict{String,Array{Float32}}   # units in dict `channel_units`
-    generated_parameters::OrderedDict{String,Array{Float32}}  # units in dict `parameter_units`
+    generated_channels::OrderedDict{String,Array{Float64}}   # units in dict `channel_units`
+    generated_parameters::OrderedDict{String,Array{Float64}}  # units in dict `parameter_units`
 
-    size::Vector{Float32}
+    size::Vector{Float64}
     size_unit::String
-    center::Vector{Float32}
-    angle::Float32
+    center::Vector{Float64}
+    angle::Float64
     pixelsize::Vector{Int}
 
-    bias::Union{Missing,Float32}
+    bias::Union{Missing,Float64}
     z_feedback::Union{Missing,Bool}
     
     start_time::DateTime
@@ -57,9 +58,9 @@ end
 SpmGrid(filename::String) = SpmGrid(
         filename, OrderedDict{String,String}(),
         String[], Dict{String,String}(), String[], String[], Dict{String,String}(),
-        "", 0, Float32[],
-        OrderedDict{String,Vector{Float32}}(), OrderedDict{String,Vector{Float32}}(),
-        Float32[], "", Float32[], 0., Int[],
+        "", 0, Float64[],
+        OrderedDict{String,Vector{Float64}}(), OrderedDict{String,Vector{Float64}}(),
+        Float64[], "", Float64[], 0., Int[],
         missing, missing,
         DateTime(-1), DateTime(-1)
     )
@@ -70,11 +71,16 @@ include("interactive_functions.jl")
 include("domain_functions.jl")
 
 
-Base.show(io::IO, ::MIME"text/plain", g::SpmGrid) = print(io, "SpmGrid(\"", g.filename, "\", ",
-    "sweep: \"", g.sweep_signal, "\", ",
-    length(g.channel_names) + length(g.generated_channels), " channels, ",
-    g.points, " points, ", g.pixelsize[1], "x", g.pixelsize[2], " pixels)")
-Base.show(io::IO, g::SpmGrid) = print(io, "SpmGrid(\"", g.filename, "\")")
+function Base.show(io::IO, g::SpmGrid)
+    if get(io, :compact, false)
+        print(io, "SpmGrid(\"", g.filename, "\")")
+    else
+        print(io, "SpmGrid(\"", g.filename, "\", ",
+        "sweep: \"", g.sweep_signal, "\", ",
+        length(g.channel_names) + length(g.generated_channels), " channels, ",
+        g.points, " points, ", g.pixelsize[1], "x", g.pixelsize[2], " pixels)")
+    end
+end
 
 
 skipnan(x) = filter(!isnan, x)  # we can also do Iterators.skipnan - but this is better for now
@@ -152,7 +158,7 @@ function load_grid(filename::AbstractString; header_only::Bool=false)::SpmGrid
         end
 
         if haskey(grid.header, "Grid settings")
-            grid_settings = parse.(Float32, split(grid.header["Grid settings"], ";"))
+            grid_settings = parse.(Float64, split(grid.header["Grid settings"], ";"))
             grid.center = [grid_settings[1], grid_settings[2]]
             grid.size = [grid_settings[3], grid_settings[4]]
             grid.size_unit = "m"
@@ -192,7 +198,7 @@ function load_grid(filename::AbstractString; header_only::Bool=false)::SpmGrid
         end
 
         if haskey(grid.header, "Bias>Bias (V)")
-            grid.bias = parse(Float32, grid.header["Bias>Bias (V)"])
+            grid.bias = parse(Float64, grid.header["Bias>Bias (V)"])
         end
 
         # read binary data
@@ -228,7 +234,7 @@ function read_binary_data!(grid::SpmGrid, f::IOStream, num_parameters::Int)::Not
     data .= ntoh.(data)  # big-endian to host endian
 
     # permute dims, so that we have, x, y, channel
-    grid.data = PermutedDimsArray(data, (2,3,1))
+    grid.data = Float64.(permutedims(data, (2,3,1)))
 
     return nothing
 end
@@ -298,7 +304,7 @@ end
 """
     get_channel(grid::SpmGrid, name::AbstractString,
         x_index::GridRange=:, y_index::GridRange=:, channel_index::GridRange=:;
-        bwd::Bool=false)::SubArray{Float32}
+        bwd::Bool=false)::SubArray{Float64}
 
 Returns the data for the channel `name` at the point(s) specified by `x_index`, `y_index`
 The channel data can be indexed by `channel_index`.
@@ -307,7 +313,7 @@ If `view` is `true` (default), then a view(@ref Base.view) is returned , otherwi
 """
 function get_channel(grid::SpmGrid, name::AbstractString,
     x_index::GridRange=:, y_index::GridRange=:, channel_index::GridRange=:;
-    bwd::Bool=false, view::Bool=true)::Union{Float32,Array{Float32},SubArray{Float32}}
+    bwd::Bool=false, view::Bool=true)::Union{Float64,Array{Float64},SubArray{Float64}}
 
     name = strip_prefix(name, PREFIX_channel)
 
@@ -345,7 +351,7 @@ end
 
 """
     add_channel!(grid::SpmGrid, name::AbstractString, unit::AbstractString,
-        data::AbstractArray{Float32})::Nothing
+        data::AbstractArray{Float64})::Nothing
 
 Adds a generated channel with `name`, `unit` and `data` to the `grid`.
 The `data` must be of the same size as channel data in the `grid`, i.e. `grid.points` x `grid.pixelsize...`.
@@ -353,7 +359,7 @@ The `name` cannot be the same as names in the original channel names.
 If the `name` exists in the generated channel names, it will be overwritten.
 """
 function add_channel!(grid::SpmGrid, name::AbstractString, unit::AbstractString,
-    data::AbstractArray{Float32})::Nothing
+    data::AbstractArray{Float64})::Nothing
 
     name = strip_prefix(name, PREFIX_channel)
 
@@ -466,13 +472,13 @@ end
 
 """
     get_parameter(grid::SpmGrid, name::AbstractString,
-        x_index::GridRange=:, y_index::GridRange=:; view::Bool=true)::Union{Array{Float32},SubArray{Float32}}
+        x_index::GridRange=:, y_index::GridRange=:; view::Bool=true)::Union{Array{Float64},SubArray{Float64}}
 
 Returns the value for parameter `name` at the point(s)specified by `x_index`, `y_index`.
 If `view` is `true` (default), then a view(@ref Base.view) is returned , otherwise a copy.
 """
 function get_parameter(grid::SpmGrid, name::AbstractString,
-    x_index::GridRange=:, y_index::GridRange=:; view::Bool=true)::Union{Float32,Array{Float32},SubArray{Float32}}
+    x_index::GridRange=:, y_index::GridRange=:; view::Bool=true)::Union{Float64,Array{Float64},SubArray{Float64}}
     
     name = strip_prefix(name, PREFIX_parameter)
 
@@ -498,7 +504,7 @@ end
 
 """
     add_parameter!(grid::SpmGrid, name::AbstractString, unit::AbstractString,
-        data::AbstractArray{Float32})::Nothing
+        data::AbstractArray{Float64})::Nothing
 
 Adds a generated parameter with `name`, `unit` and `data` to the `grid`.
 The `data` must be of the same size as parameter data in the `grid`, i.e. `grid.pixelsize`.
@@ -506,7 +512,7 @@ The `name` cannot be the same as names in the original parameter names.
 If the `name` exists in the generated parameter names, it will be overwritten.
 """
 function add_parameter!(grid::SpmGrid, name::AbstractString, unit::AbstractString,
-    data::AbstractArray{Float32})::Nothing
+    data::AbstractArray{Float64})::Nothing
 
     name = strip_prefix(name, PREFIX_parameter)
 
@@ -567,7 +573,7 @@ end
 """
     get_data(grid::SpmGrid, name::AbstractString,
         x_index::GridRange=:, y_index::GridRange=:, channel_index::GridRange=:;
-        bwd::Bool=false)::SubArray{Float32}
+        bwd::Bool=false)::SubArray{Float64}
 
 Returns the data for the channel or parameter `name` at the point(s) specified by `x_index`, `y_index`
 Channel data can also be indexed by `channel_index`.
@@ -576,7 +582,7 @@ If `view` is `true` (default), then a view(@ref Base.view) is returned , otherwi
 """
 function get_data(grid::SpmGrid, name::AbstractString,
     x_index::GridRange=:, y_index::GridRange=:, channel_index::GridRange=:;
-    bwd::Bool=false, view::Bool=true)::Union{Float32,Array{Float32},SubArray{Float32}}
+    bwd::Bool=false, view::Bool=true)::Union{Float64,Array{Float64},SubArray{Float64}}
 
     if startswith(name, PREFIX_channel)
         return get_channel(grid, name, x_index, y_index, channel_index, bwd=bwd, view=view)

@@ -1,3 +1,6 @@
+const elementary_charge = 1.602176634e-19  # Coulombs
+
+
 """
     fit_KPFM!(grid::SpmGrid, response_channel::String;
         sweep_channel::String="", bwd::Bool=true)::Nothing
@@ -29,11 +32,11 @@ function fit_KPFM!(grid::SpmGrid, response_channel::String;
     dim_par = grid.pixelsize
     
     # pre-define arrays for the results
-    kpfm_bias = Array{Float32}(undef, dim_par...)
-    kpfm_df = Array{Float32}(undef, dim_par...)
-    kpfm_fit = Array{Float32}(undef, dim_ch...)
-    kpfm_res = Array{Float32}(undef, dim_ch...)
-    kpfm_res_abs_sum = Array{Float32}(undef, dim_par...)
+    kpfm_bias = Array{Float64}(undef, dim_par...)
+    kpfm_df = Array{Float64}(undef, dim_par...)
+    kpfm_fit = Array{Float64}(undef, dim_ch...)
+    kpfm_res = Array{Float64}(undef, dim_ch...)
+    kpfm_res_abs_sum = Array{Float64}(undef, dim_par...)
     
     # loop over all x,y pixels
     for ix in 1:dim_ch[1], iy in 1:dim_ch[2]
@@ -61,21 +64,21 @@ function fit_KPFM!(grid::SpmGrid, response_channel::String;
         kpfm_res_abs_sum[ix, iy] = sum(abs.(kpfm_res[ix, iy, :]))
     end
     
-    # if we are fitting backward sweep, we use backward names for the channels
+    # for backward sweep, we use backward names for the channels
     if response_channel == channel_name_bwd(response_channel)
-        f = x -> channel_name_bwd(x)
+        name = x -> channel_name_bwd(x)
     else
-        f = x -> x
+        name = x -> x
     end
 
     # add all the data to the grid
-    add_parameter!(grid, f("KPFM:Bias"), "V", kpfm_bias)
-    add_parameter!(grid, f("KPFM:Frequency Shift"), "Hz", kpfm_df)
-    add_channel!(grid, f("KPFM:Fit"), "Hz", kpfm_fit)
-    add_channel!(grid, f("KPFM:Residuals"), "Hz", kpfm_res)
-    add_parameter!(grid, f("KPFM:Residuals AbsSum"), "Hz", kpfm_res_abs_sum)
+    add_parameter!(grid, name("KPFM:Bias"), "V", kpfm_bias)
+    add_parameter!(grid, name("KPFM:Frequency Shift"), "Hz", kpfm_df)
+    add_channel!(grid, name("KPFM:Fit"), "Hz", kpfm_fit)
+    add_channel!(grid, name("KPFM:Residuals"), "Hz", kpfm_res)
+    add_parameter!(grid, name("KPFM:Residuals AbsSum"), "Hz", kpfm_res_abs_sum)
 
-    # backwards sweeps
+    # backward sweeps
     if bwd &&
         has_channel(grid, response_channel, bwd=true) &&
         has_channel(grid, sweep_channel, bwd=true) &&

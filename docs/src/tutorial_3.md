@@ -18,11 +18,11 @@ dim_ch = size(df)
 dim_par = grid.pixelsize
 
 # pre-define arrays for the results
-kpfm_bias = Array{Float32}(undef, dim_par...)
-kpfm_df = Array{Float32}(undef, dim_par...)
-kpfm_fit = Array{Float32}(undef, dim_ch...)
-kpfm_res = Array{Float32}(undef, dim_ch...)
-kpfm_res_abs_sum = Array{Float32}(undef, dim_par...)
+kpfm_bias = Array{Float64}(undef, dim_par...)
+kpfm_df = Array{Float64}(undef, dim_par...)
+kpfm_fit = Array{Float64}(undef, dim_ch...)
+kpfm_res = Array{Float64}(undef, dim_ch...)
+kpfm_res_abs_sum = Array{Float64}(undef, dim_par...)
 
 # loop over all x,y pixels
 for ix in 1:dim_ch[1], iy in 1:dim_ch[2]

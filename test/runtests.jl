@@ -4,7 +4,22 @@ using GLMakie
 using SpmGrids
 using Test
 
+
 skipnan = SpmGrids.skipnan
+
+"""
+Compares two Arrays/Tuples, each element should not deviate by more than `thresh` (relative to b).
+"""
+function similar(a, b, thresh=1e-3)::Bool
+    if length(a) != length(b)
+        return false
+    end
+    if any(abs.(a .- b) ./ b .> thresh)
+        return false
+    end
+    return true
+end
+
 
 @testset "load data" begin
     grid = load_grid("Grid Spectroscopy002.3ds", header_only=true)
@@ -14,7 +29,6 @@ skipnan = SpmGrids.skipnan
     @test grid.center ≈ [1.106620E-7, 2.331660E-7]
     @test grid.size ≈ [1.5e-8, 1.5e-8]
     @test grid.size_unit == "m"
-
 
     @test grid.points == 128
 
@@ -45,15 +59,28 @@ skipnan = SpmGrids.skipnan
     @test grid.header["Comment"] == "KPFM"
     @test grid.header["Experiment"] == "Grid Spectroscopy"
 
+    # Base.show with header_only=true
+    io = IOBuffer()
+    print(IOContext(io, :compact => false), grid)
+    @test String(take!(io)) == """SpmGrid("Grid Spectroscopy002.3ds", sweep: "Bias", 10 channels, 128 points, 20x20 pixels)"""
+    print(IOContext(io, :compact => true), grid)
+    @test String(take!(io)) == """SpmGrid("Grid Spectroscopy002.3ds")"""
+    
     grid = load_grid("Grid Spectroscopy002.3ds")
+
+    # Base.show with header_only=false
+    print(IOContext(io, :compact => false), grid)
+    @test String(take!(io)) == """SpmGrid("Grid Spectroscopy002.3ds", sweep: "Bias", 10 channels, 128 points, 20x20 pixels)"""
+    print(IOContext(io, :compact => true), grid)
+    @test String(take!(io)) == """SpmGrid("Grid Spectroscopy002.3ds")"""
 
     @test length(grid.data) == 20 * 20 * (18 + 10 * 128)  # pixels * (parameters + channels * points)
     @test size(get_channel(grid, "Bias", 4:20, 5:5)) == (17,1,128)
     @test size(get_channel(grid, "Frequency Shift", 4:20, 5:7, 20:23)) == (17,3, 4)
-    @test get_channel(grid, "Bias", 20, 7, 20)[] ≈ 0.15511811f0
+    @test get_channel(grid, "Bias", 20, 7, 20)[] ≈ 0.15511811
     @test all(get_parameter(grid, "Z offset", 3, :) .≈ 0.0)
-    @test get_parameter(grid, "Z", 3, 5)[] ≈ -1.1132063f-8
-    @test get_channel(grid, "Current", 20, 7, 20:24) ≈ Float32[1.3028699f-10, 1.2868269f-10, 1.2712124f-10, 1.2609777f-10, 1.2497206f-10]
+    @test get_parameter(grid, "Z", 3, 5)[] ≈ -1.1132063271190873e-8
+    @test get_channel(grid, "Current", 20, 7, 20:24) ≈ [1.3028698953032603e-10, 1.2868268950416706e-10, 1.2712124408675862e-10, 1.2609777111372011e-10, 1.2497206047790144e-10]
 
     @test has_parameter(grid, "Z offset")
     @test has_parameter(grid, "Sweep End")
@@ -70,7 +97,7 @@ skipnan = SpmGrids.skipnan
     end
     @test occursin("Using forward", logs[1].message)
 
-    @test all(xyindex_to_point(grid, 1, 10) .≈ (0, 7.105263f-9))
+    @test all(xyindex_to_point(grid, 1, 10) .≈ (0.0, 7.105263157894736e-9))
 
     grid = load_grid("Grid Spectroscopy006.3ds")
     @test has_parameter(grid, "Z offset")
@@ -136,7 +163,7 @@ end
 
     err = nothing
     try
-        add_channel!(grid, "Bias2", "", Float32[])
+        add_channel!(grid, "Bias2", "", Float64[])
     catch err
     end
     @test err isa Exception
@@ -197,7 +224,7 @@ end
         
     err = nothing
     try
-        add_parameter!(grid, "Bias2", "", Float32[])
+        add_parameter!(grid, "Bias2", "", Float64[])
     catch err
     end
     @test err isa Exception
@@ -256,8 +283,8 @@ end
 
     @test x_label == "Bias / mV"
     @test y_label == "Frequency Shift / Hz"
-    @test x_factor ≈ 1.0f3
-    @test y_factor ≈ 1.0f0
+    @test x_factor ≈ 1.0e3
+    @test y_factor ≈ 1.
 
     # fig = CairoMakie.Figure(resolution = (800, 400))
     # ax = CairoMakie.Axis(fig[1, 1])
@@ -277,11 +304,11 @@ end
     @test ax.xlabel[] == "Bias / mV"
     @test ax.ylabel[] == "Current / pA"
 
-    @test abs(ax.finallimits[].origin[1] / -115.00001f0 - 1.0) < 0.2
-    @test abs(ax.finallimits[].origin[2] / -115.49187f0 - 1.0) < 0.2
+    @test abs(ax.finallimits[].origin[1] / -115.00001 - 1.0) < 0.2
+    @test abs(ax.finallimits[].origin[2] / -115.49187 - 1.0) < 0.2
 
-    @test abs(ax.finallimits[].widths[1] / 330.0001f0 - 1.0) < 0.2
-    @test abs(ax.finallimits[].widths[2] / 263.00067f0 - 1.0) < 0.2
+    @test abs(ax.finallimits[].widths[1] / 330.0001 - 1.0) < 0.2
+    @test abs(ax.finallimits[].widths[2] / 263.00067 - 1.0) < 0.2
 
     grid = load_grid("Grid Spectroscopy006.3ds") # contains bwd and fwd, also is stopped after a few lines
 
@@ -322,20 +349,20 @@ end
     plot_line(grid, "Frequency Shift", 5:10, 1, 10, color_bwd="#e0e0e0")  
     @test ax.xlabel[] == "grid x / pm"
     @test ax.ylabel[] == "Frequency Shift / Hz"
-    @test abs(ax.finallimits[].origin[1] / 362.90323f0 - 1.0) < 0.2
-    @test abs(ax.finallimits[].origin[2] / -2.4572f0 - 1.0) < 0.2
-    @test abs(ax.finallimits[].widths[1] / 532.25806f0 - 1.0) < 0.2
-    @test abs(ax.finallimits[].widths[2] / 0.2953453f0 - 1.0) < 0.2
+    @test abs(ax.finallimits[].origin[1] / 362.90323 - 1.0) < 0.2
+    @test abs(ax.finallimits[].origin[2] / -2.4572 - 1.0) < 0.2
+    @test abs(ax.finallimits[].widths[1] / 532.25806 - 1.0) < 0.2
+    @test abs(ax.finallimits[].widths[2] / 0.2953453 - 1.0) < 0.2
 
     fig = CairoMakie.Figure(resolution = (800, 400));
     ax = CairoMakie.Axis(fig[1, 1])
     plot_line(grid, "Current", 5, :, 10, color_bwd="#e0e0e0")  
     @test ax.xlabel[] == "grid y / nm"
     @test ax.ylabel[] == "Current / fA"
-    @test abs(ax.finallimits[].origin[1] / -0.00967742f0 - 1.0) < 0.2
-    @test abs(ax.finallimits[].origin[2] / -34.985077f0 - 1.0) < 0.2
-    @test abs(ax.finallimits[].widths[1] / 0.21290325f0 - 1.0) < 0.2
-    @test abs(ax.finallimits[].widths[2] / 22.791697f0 - 1.0) < 0.2
+    @test abs(ax.finallimits[].origin[1] / -0.00967742 - 1.0) < 0.2
+    @test abs(ax.finallimits[].origin[2] / -34.985077 - 1.0) < 0.2
+    @test abs(ax.finallimits[].widths[1] / 0.21290325 - 1.0) < 0.2
+    @test abs(ax.finallimits[].widths[2] / 22.791697 - 1.0) < 0.2
 
     fig = CairoMakie.Figure(resolution = (800, 400));
     ax = CairoMakie.Axis(fig[1, 1])
@@ -344,8 +371,8 @@ end
     @test ax.ylabel[] == "Frequency Shift / Hz"
     @test abs(ax.finallimits[].origin[1] / -4.942342 - 1.0) < 0.2
     @test abs(ax.finallimits[].origin[2] / -7.784694 - 1.0) < 0.2
-    @test abs(ax.finallimits[].widths[1] / 0.5133338f0 - 1.0) < 0.2
-    @test abs(ax.finallimits[].widths[2] / 6.1346087f0 - 1.0) < 0.2
+    @test abs(ax.finallimits[].widths[1] / 0.5133338 - 1.0) < 0.2
+    @test abs(ax.finallimits[].widths[2] / 6.1346087 - 1.0) < 0.2
 
     fig = CairoMakie.Figure(resolution = (800, 400));
     ax = CairoMakie.Axis(fig[1, 1])
@@ -355,8 +382,8 @@ end
     @test ax.ylabel[] == "Frequency Shift / Hz"
     @test abs(ax.finallimits[].origin[1] / -4.942342 - 1.0) < 0.2
     @test abs(ax.finallimits[].origin[2] / -7.784694 - 1.0) < 0.2
-    @test abs(ax.finallimits[].widths[1] / 0.5133338f0 - 1.0) < 0.2
-    @test abs(ax.finallimits[].widths[2] / 6.1346087f0 - 1.0) < 0.2
+    @test abs(ax.finallimits[].widths[1] / 0.5133338 - 1.0) < 0.2
+    @test abs(ax.finallimits[].widths[2] / 6.1346087 - 1.0) < 0.2
 
     # x channel should be sorted
     fig = CairoMakie.Figure(resolution = (800, 400));
@@ -406,20 +433,20 @@ end
 
     # check some data
     d = SpmGrids.get_data_plane(grid, "Frequency Shift", :, :, 120)
-    @test d.x[20] ≈ 15.0f0
-    @test d.x[2] ≈ 0.78947365f0
-    @test d.y[6] ≈ 3.9473684f0
-    @test d.data[2,17] ≈ -6.689749f0
+    @test d.x[20] ≈ 15.0
+    @test d.x[2] ≈ 0.7894736842105262
+    @test d.y[6] ≈ 3.9473684
+    @test d.data[2,17] ≈ -6.689748764038086
     d = SpmGrids.get_data_plane(grid, "Frequency Shift", 20, :, :)
-    @test d.x[20] ≈ 15.0f0
-    @test d.x[2] ≈ 0.78947365f0
-    @test d.y[6] ≈ 188.18898f0
-    @test d.data[2,17] ≈ -6.0430384f0
+    @test d.x[20] ≈ 15.0
+    @test d.x[2] ≈ 0.7894736842105262
+    @test d.y[6] ≈ 188.18898499011993
+    @test d.data[2,17] ≈ -6.0430384
     d = SpmGrids.get_data_plane(grid, "Frequency Shift", 5:15, 3, :)
-    @test d.x[2] ≈ 3.9473684f0
-    @test d.x[11] ≈ 11.052631f0
-    @test d.y[6] ≈ 188.18898f0
-    @test d.data[2,17] ≈ -6.0026183f0
+    @test d.x[2] ≈ 3.9473684
+    @test d.x[11] ≈ 11.052631578947368
+    @test d.y[6] ≈ 188.18898499011993
+    @test d.data[2,17] ≈ -6.0026183
 
     grid = load_grid("Grid Spectroscopy006.3ds")
     fig = CairoMakie.Figure(resolution = (800, 400));
@@ -563,17 +590,17 @@ end
     @test content(f[1,1][1,1]).xlabel[] == "grid x / nm"  # cube
     @test content(f[1,1][1,1]).ylabel[] == "grid y / nm"
     @test content(f[1,1][1,1]).zlabel[] == "Bias / mV"
-    @test content(f[1,1][1,2]).limits[] == (-160.23476f0, 196.02937f0)  # cube colorbar
+    @test similar(content(f[1,1][1,2]).limits[], (-160.23476, 196.02937))  # cube colorbar
     @test content(f[1,1][1,2]).label[] == "Current / pA"
 
     @test content(f[2,1][1,1]).xlabel[] == "grid x / nm"  #  plane
     @test content(f[2,1][1,1]).ylabel[] == "grid y / nm"
-    @test content(f[2,1][1,2]).limits[] == (50.462166f0, 196.02937f0)  # plane colorbar
+    @test similar(content(f[2,1][1,2]).limits[], (50.462166, 196.02937))  # plane colorbar
     @test content(f[2,1][1,2]).label[] == "Current / pA"
 
     @test content(f[4,1][1,1]).xlabel[] == "grid x / nm"  #  par plane
     @test content(f[4,1][1,1]).ylabel[] == "grid y / nm"
-    @test content(f[4,1][1,2]).limits[] == (103.536995f0, 117.787f0)  # par plane colorbar
+    @test similar(content(f[4,1][1,2]).limits[], (103.536995, 117.787))  # par plane colorbar
     @test content(f[4,1][1,2]).label[] == "X / nm"
 
     @test content(f[2,2][1,1]).xlabel[] == "Bias / mV"  #  plot 1
@@ -601,11 +628,11 @@ end
     content(f[3,1][1,1]).selection[] = "Sweep Start"
     content(f[3,2][1,1]).selection[] = "Phase"
 
-    @test content(f[1,1][1,2]).limits[] == (-7.0765924f0, -5.8998227f0)  # cube colorbar
+    @test similar(content(f[1,1][1,2]).limits[], (-7.0765924, -5.8998227))  # cube colorbar
     @test content(f[1,1][1,2]).label[] == "Frequency Shift / Hz"
-    @test content(f[2,1][1,2]).limits[] == (-6.503672f0, -6.044674f0)  # plane colorbar
+    @test similar(content(f[2,1][1,2]).limits[], (-6.503672, -6.044674))  # plane colorbar
     @test content(f[2,1][1,2]).label[] == "Frequency Shift / Hz"
-    @test content(f[4,1][1,2]).limits[] == (198.0f0, 202.0f0)  # par plane colorbar
+    @test similar(content(f[4,1][1,2]).limits[], (198.0, 202.0))  # par plane colorbar
     @test content(f[4,1][1,2]).label[] == "Sweep Start / mV"
     @test content(f[2,2][1,1]).xlabel[] == "Bias / mV"  #  plot 1
     @test content(f[2,2][1,1]).ylabel[] == "Frequency Shift / Hz"
@@ -625,17 +652,17 @@ end
     @test content(f[1,1][1,1]).xlabel[] == "grid x / nm"  # cube
     @test content(f[1,1][1,1]).ylabel[] == "grid y / nm"
     @test content(f[1,1][1,1]).zlabel[] == "Z [bwd] / nm"
-    @test content(f[1,1][1,2]).limits[] == (-27.851484f0, -1.9089116f0)  # cube colorbar
+    @test similar(content(f[1,1][1,2]).limits[], (-27.851484, -1.9089116)) # cube colorbar
     @test content(f[1,1][1,2]).label[] == "Frequency Shift [bwd] / Hz"
 
     @test content(f[2,1][1,1]).xlabel[] == "grid x / nm"  #  plane
     @test content(f[2,1][1,1]).ylabel[] == "grid y / nm"
-    @test content(f[2,1][1,2]).limits[] == (-2.4514494f0, -1.9089116f0)  # plane colorbar
+    @test similar(content(f[2,1][1,2]).limits[], (-2.4514494, -1.9089116))  # plane colorbar
     @test content(f[2,1][1,2]).label[] == "Frequency Shift [bwd] / Hz"
 
     @test content(f[4,1][1,1]).xlabel[] == "grid x / nm"  #  par plane
     @test content(f[4,1][1,1]).ylabel[] == "grid y / nm"
-    @test content(f[4,1][1,2]).limits[] == (197.99998f0, 201.99998f0) # par plane colorbar
+    @test similar(content(f[4,1][1,2]).limits[], (197.99998, 201.99998))  # par plane colorbar
     @test content(f[4,1][1,2]).label[] == "Sweep Start / pm"
 
     @test content(f[2,2][1,1]).xlabel[] == "Z / nm"  #  plot 1
@@ -666,12 +693,12 @@ end
     content(f[3,2][1,1]).selection[] = "Excitation"
 
     @test content(f[1,1][1,1]).zlabel[] == "Z / nm"
-    @test content(f[1,1][1,2]).limits[] == (-0.01f0, 0.01f0)  # cube colorbar
+    @test content(f[1,1][1,2]).limits[] == (-0.01, 0.01)  # cube colorbar
     @test content(f[1,1][1,2]).label[] == "Bias / V"
     @test content(f[2,1][1,1]).title[] == "Z=-4.82 nm"
-    @test content(f[2,1][1,2]).limits[] == (-0.01f0, 0.01f0)   # plane colorbar
+    @test content(f[2,1][1,2]).limits[] == (-0.01, 0.01)   # plane colorbar
     @test content(f[2,1][1,2]).label[] == "Bias / V"
-    @test content(f[4,1][1,2]).limits[] == (-0.01f0, 0.01f0) # par plane colorbar
+    @test content(f[4,1][1,2]).limits[] == (-0.01, 0.01) # par plane colorbar
     @test content(f[4,1][1,2]).label[] == "Scan:Bias / V"
     @test content(f[2,2][1,1]).xlabel[] == "Z / m"  #  plot 1
     @test content(f[2,2][1,1]).ylabel[] == "Bias / V"
@@ -689,12 +716,12 @@ end
     content(f[3,2][1,1]).selection[] = "AbsCurrent"  # changes length of xy_bwd values
 
     @test content(f[1,1][1,1]).zlabel[] == "Z [bwd] / nm"
-    @test content(f[1,1][1,2]).limits[] == (-0.01f0, 0.01f0)  # cube colorbar
+    @test content(f[1,1][1,2]).limits[] == (-0.01, 0.01)  # cube colorbar
     @test content(f[1,1][1,2]).label[] == "AbsBias [bwd] / V"
     @test content(f[2,1][1,1]).title[] == "Z=-4.82 nm"
-    @test content(f[2,1][1,2]).limits[] == (-0.01f0, 0.01f0)   # plane colorbar
+    @test content(f[2,1][1,2]).limits[] == (-0.01, 0.01)   # plane colorbar
     @test content(f[2,1][1,2]).label[] == "AbsBias [bwd] / V"
-    @test content(f[4,1][1,2]).limits[] == (0.026592601f0, 47.17634f0) # par plane colorbar
+    @test similar(content(f[4,1][1,2]).limits[], (0.026592601, 47.17634)) # par plane colorbar
     @test content(f[4,1][1,2]).label[] == "AbsExcitation / mV"
     @test content(f[2,2][1,1]).xlabel[] == "Z / m"  #  plot 1
     @test content(f[2,2][1,1]).ylabel[] == "AbsBias / V"
@@ -705,6 +732,8 @@ end
 @testset "domain functions" begin
     grid = load_grid("Grid Spectroscopy002.3ds")
     
+    # KPFM
+
     # manually create backwards channels
     add_channel!(grid, bwd"Frequency Shift", "Hz", get_channel(grid, "Frequency Shift"))
     add_channel!(grid, bwd"Bias", "V", get_channel(grid, "Bias"))
@@ -712,28 +741,61 @@ end
     fit_KPFM!(grid, "Frequency Shift")
 
     d = get_data(grid, "KPFM:Bias")
-    @test d[2,12] ≈ 0.1495999f0
-    @test d[7, 16] ≈ 0.13154882f0
+    @test d[2,12] ≈ 0.14959989639861593
+    @test d[7,16] ≈ 0.13154882380114918
 
     d = get_data(grid, "KPFM:Frequency Shift")
-    @test d[9, 2] ≈ -5.985143f0
-    @test d[12, 8] ≈ -6.070098f0
+    @test d[9, 2] ≈ -5.9851432718361455
+    @test d[12, 8] ≈ -6.070098
 
     d = get_data(grid, "KPFM:Fit")
-    @test d[1,6,123] ≈ -6.57627f0
-    @test d[3,9,12] ≈ -6.0692973f0
+    @test d[1,6,123] ≈ -6.576270333507708
+    @test d[3,9,12] ≈ -6.0692973
     d = get_data(grid, bwd"KPFM:Fit")
-    @test d[1,6,123] ≈ -6.57627f0
-    @test d[3,9,12] ≈ -6.0692973f0
+    @test d[1,6,123] ≈ -6.576270333507708
+    @test d[3,9,12] ≈ -6.0692973
 
     d = get_data(grid, "KPFM:Residuals")
-    @test d[1,2,98] ≈ 0.02949953f0
-    @test  d[7,3,2] ≈ -0.04449749f0
+    @test d[1,2,98] ≈ 0.02949972226111086
+    @test  d[7,3,2] ≈ -0.04449738294511185
     d = get_data(grid, bwd"KPFM:Residuals")
-    @test d[1,2,98] ≈ 0.02949953f0
-    @test  d[7,3,2] ≈ -0.04449749f0
+    @test d[1,2,98] ≈ 0.02949972226111086
+    @test  d[7,3,2] ≈ -0.04449738294511185
 
     d = get_data(grid, "KPFM:Residuals AbsSum")
-    @test d[5,1] ≈ 1.6319232f0
-    @test d[12,6] ≈ 1.987781f0
+    @test d[5,1] ≈ 1.6319225859795568
+    @test d[12,6] ≈ 1.9877788006380177
+
+
+    # force deconvolution
+
+    # check error messages
+    delete!(grid.header, "Oscillation Control>Amplitude Setpoint (m)")
+    err = nothing
+    try
+        deconvolve_force!(grid, "Frequency Shift")
+    catch err
+    end
+    @test contains(sprint(showerror, err), "oscillation amplitude")
+    @test contains(sprint(showerror, err), "not saved in the header")
+    @test contains(sprint(showerror, err), "Please specify")
+
+    delete!(grid.header, "Oscillation Control>Center Frequency (Hz)")
+    err = nothing
+    try
+        deconvolve_force!(grid, "Frequency Shift")
+    catch err
+    end
+    @test err isa Exception
+    @test contains(sprint(showerror, err), "resonance frequency")
+    @test contains(sprint(showerror, err), "not saved in the header")
+    @test contains(sprint(showerror, err), "Please specify")
+
+    grid = load_grid("Grid Spectroscopy006.3ds")
+    logs, value = Test.collect_test_logs() do
+        force_deconvolve!(grid, "Frequency Shift")
+    end
+    @test occursin("not sorted", logs[1].message)
+    @test occursin("you sure", logs[1].message)
+
 end
