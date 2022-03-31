@@ -79,10 +79,9 @@ function fit_KPFM!(grid::SpmGrid, response_channel::String;
     add_parameter!(grid, name("KPFM:Residuals AbsSum"), "Hz", kpfm_res_abs_sum)
 
     # backward sweeps
-    if bwd &&
+    if bwd && response_channel != channel_name_bwd(response_channel) &&
         has_channel(grid, response_channel, bwd=true) &&
-        has_channel(grid, sweep_channel, bwd=true) &&
-        response_channel != channel_name_bwd(response_channel)
+        has_channel(grid, sweep_channel, bwd=true)
 
             fit_KPFM!(grid, channel_name_bwd(response_channel),
                 sweep_channel=channel_name_bwd(sweep_channel), bwd=false)
@@ -151,7 +150,7 @@ function deconvolve_force!(grid::SpmGrid, response_channel::String,
 
     if A ≈ 0.
         if haskey(grid.header, "Oscillation Control>Amplitude Setpoint (m)")
-            f₀ = parse(Float64, grid.header["Oscillation Control>Amplitude Setpoint (m)"])
+            A = parse(Float64, grid.header["Oscillation Control>Amplitude Setpoint (m)"])
         else
             throw(ArgumentError("The oscillation amplitude A is not saved in the header of the grid. Please specify the value manually."))
         end
@@ -241,7 +240,7 @@ function deconvolve_force!(grid::SpmGrid, response_channel::String,
     if calc_xy_derivs
         # differentiate in x and y direction
         grid_Fx = cat(diff(grid_E, dims=1), fill(NaN, 1, ny, nc), dims=1)
-        grid_Fx = cat(diff(grid_E, dims=2), fill(NaN, nx, 1, nc), dims=2)
+        grid_Fy = cat(diff(grid_E, dims=2), fill(NaN, nx, 1, nc), dims=2)
     else
         @warn "The sweep channel is not sorted, the x and y force components will not be calculated." *
         "Are you sure this is the correct type of experiment for a force deconvolution?"
@@ -264,11 +263,10 @@ function deconvolve_force!(grid::SpmGrid, response_channel::String,
     end
 
     # backward sweeps
-    if bwd &&
+    if bwd && response_channel != channel_name_bwd(response_channel) &&
         has_channel(grid, response_channel, bwd=true) &&
-        has_channel(grid, sweep_channel, bwd=true) &&
-        response_channel != channel_name_bwd(response_channel)
-
+        has_channel(grid, sweep_channel, bwd=true)
+        
         deconvolve_force!(grid, channel_name_bwd(response_channel),
                 f₀, A, k,
                 sweep_channel=channel_name_bwd(sweep_channel), bwd=false)

@@ -85,4 +85,63 @@
     @test occursin("not sorted", logs[1].message)
     @test occursin("you sure", logs[1].message)
 
+    # Z spectroscopy
+    grid = load_grid("Grid Spectroscopy006.3ds")
+    deconvolve_force!(grid, "Frequency Shift", bwd=false)
+
+    @test has_channel(grid, "Force z")
+    @test has_channel(grid, "Force x")
+    @test has_channel(grid, "Force y")
+    @test has_channel(grid, "Potential")
+    @test !has_channel(grid, "Force z", bwd=true)
+    @test !has_channel(grid, "Force x", bwd=true)
+    @test !has_channel(grid, "Force y", bwd=true)
+    @test !has_channel(grid, "Potential", bwd=true)
+
+    grid = load_grid("Grid Spectroscopy006.3ds")
+    deconvolve_force!(grid, "Frequency Shift")
+
+    @test has_channel(grid, "Force z")
+    @test has_channel(grid, "Force x")
+    @test has_channel(grid, "Force y")
+    @test has_channel(grid, "Potential")
+    @test has_channel(grid, "Force z", bwd=true)
+    @test has_channel(grid, "Force x", bwd=true)
+    @test has_channel(grid, "Force y", bwd=true)
+    @test has_channel(grid, "Potential", bwd=true)
+
+    c = get_channel(grid, "Force z")
+    @test c[6,2,10] ≈ -1.4573654967919203e-11
+    @test c[12,3,10] ≈ -5.971859281705465e-12
+    @test isnan(c[12,4,10])
+    c = get_channel(grid, "Potential")
+    @test c[12,1,10]≈ -0.0011771857638349808
+    @test c[7,2,100] ≈ -0.18696641607427575
+    @test isnan(c[12,4,10])
+    c = get_channel(grid, "Force x")
+    @test  c[12,3,100] ≈ -1.0447613563506554e-21
+    @test c[9,1,50] ≈ -1.2861540168152848e-22
+    @test isnan(c[12,4,1])
+    c = get_channel(grid, "Force y")
+    @test c[11,2,35] ≈ -1.971998717312636e-23
+    @test c[1,2,98] ≈ 2.6261426871029894e-22
+    @test isnan(c[11,4,35])
+
+    c = get_channel(grid, bwd"Force z")
+    @test c[6,2,10] ≈ -1.3280328215799362e-11
+    @test c[12,3,10] ≈ -1.9820765373158113e-12
+    @test isnan(c[12,4,1])
+    c = get_channel(grid, bwd"Potential")
+    @test c[12,1,10]≈ -0.0011360021159299938
+    @test c[7,2,100] ≈ -0.18984193578405226
+    @test isnan(c[12,4,10])
+    c = get_channel(grid, bwd"Force x")
+    @test  c[12,3,100] ≈ -8.87311076090244e-22
+    @test c[9,1,50] ≈ 3.263670875442849e-23
+    @test isnan(c[12,4,1])
+    c = get_channel(grid, bwd"Force y")
+    @test c[11,2,35] ≈ 6.058520189976003e-23
+    @test c[1,2,98] ≈ -1.1223820633843214e-22
+    @test isnan(c[11,4,35])
+
 end
