@@ -1,4 +1,31 @@
 """
+    line_plot_values(data::Array{Point2{Float64}}, data_bwd::Array{Point2{Float64}},
+        i::Int)::String
+
+Formats the values for the line plot label.
+"""
+function line_plot_values(data::Array{Point2{Float64}}, data_bwd::Array{Point2{Float64}},
+    i::Int)::String
+
+    if length(data_bwd) > 0
+        return @sprintf("%0.2f   %0.2f", data[i][2], data_bwd[i][2])
+    else
+        return @sprintf("%0.2f", data[i][2])
+    end
+end
+
+
+"""
+    parameter_plane_values(data::Array{Float64,2}, x::Int, y::Int)::String
+
+Formats the values for the parameter plane plot label.
+"""
+function parameter_plane_values(data::Array{Float64,2}, x::Int, y::Int)::String
+    return @sprintf("%0.2f", data[x,y])
+end
+
+
+"""
     interactive_display(grid::SpmGrid, response_channel::String="", response_channel2::String="", parameter::String="";
         bwd::Bool=false, fig::Any=nothing, backend::Module=Main)::Any
 
@@ -114,24 +141,49 @@ function interactive_display(grid::SpmGrid, response_channel::String="", respons
 
     data_plane = get_data_plane(grid, response_channel, :, :, grid_z[],
         bwd=!forward, backend=backend, observable=true)
-    ax_plane_channel = backend.Axis(g21[1, 1], title=data_plane.plot_label)
+    ax_plane_channel = backend.Axis(g21[1, 1], title=data_plane.plot_label, titlealign=:left)
     plot_plane(data_plane, ax_plane_channel, g21[1, 2], backend; kwargs...)
 
     data_parameter_plane = get_data_parameter_plane(grid, parameter, :, :,
         backend=backend, observable=true)
-    ax_plane_parameter = backend.Axis(g41[1, 1], title=data_parameter_plane.plot_label)
-    plot_plane(data_parameter_plane, ax_plane_parameter, g41[1, 2], backend; kwargs...)
+    ax_parameter_plane = backend.Axis(g41[1, 1], title=data_parameter_plane.plot_label, titlealign=:left)
+    plot_plane(data_parameter_plane, ax_parameter_plane, g41[1, 2], backend; kwargs...)
 
     data_line_1 = get_data_line(grid, response_channel, grid_x[], grid_y[], :,
         observable=true)
-    ax_line_1 = backend.Axis(g22[1, 1], title=data_line_1.plot_label, xlabel=data_line_1.x_label, ylabel=data_line_1.y_label)
+    ax_line_1 = backend.Axis(g22[1, 1], title=data_line_1.plot_label, titlealign=:left,
+        xlabel=data_line_1.x_label, ylabel=data_line_1.y_label)
     plot_line(data_line_1, ax_line_1, backend; kwargs...)
 
     data_line_2 = get_data_line(grid, response_channel2, grid_x[], grid_y[], :,
         observable=true)
-    ax_line_2 = backend.Axis(g42[1, 1], title=data_line_2.plot_label, xlabel=data_line_2.x_label, ylabel=data_line_2.y_label)
+    ax_line_2 = backend.Axis(g42[1, 1], title=data_line_2.plot_label, titlealign=:left,
+        xlabel=data_line_2.x_label, ylabel=data_line_2.y_label)
     plot_line(data_line_2, ax_line_2, backend; kwargs...)
 
+    # labels
+    data_parameter_plane_topright = g41[1,1, backend.TopRight()]
+    data_parameter_plane_label_text = map(
+        (x,y,z) -> parameter_plane_values(data_parameter_plane.data[], x, y),
+        grid_x, grid_y, grid_z
+    )
+    data_parameter_plane_label_x = backend.Label(data_parameter_plane_topright[1,1], data_parameter_plane_label_text,
+        halign=:right, justification=:left, tellwidth=false, tellheight=false, color="#a0a0a0")
+    data_line_1_topright = g22[1,1, backend.TopRight()]
+    data_line_1_label_text = map(
+        (x,y,z) -> line_plot_values(data_line_1.xy[], data_line_1.xy_bwd[], z),
+        grid_x, grid_y, grid_z
+    )
+    data_line_1_label_x = backend.Label(data_line_1_topright[1,1], data_line_1_label_text,
+        halign=:right, justification=:left, tellwidth=false, tellheight=false, color="#a0a0a0")
+    data_line_2_topright = g42[1,1, backend.TopRight()]
+    data_line_2_label_text = map(
+        (x,y,z) -> line_plot_values(data_line_2.xy[], data_line_2.xy_bwd[], z),
+        grid_x, grid_y, grid_z
+    )
+    data_line_2_label_x = backend.Label(data_line_2_topright[1,1], data_line_2_label_text,
+        halign=:right, justification=:left, tellwidth=false, tellheight=false, color="#a0a0a0")
+    
     # markers
     rect_3d = plot_rect_3d(data_cube, grid_z_start, ax_cube, backend)
     grid_x_pos = map(i -> data_cube.x[][i], grid_x)
@@ -139,6 +191,8 @@ function interactive_display(grid::SpmGrid, response_channel::String="", respons
     grid_z_pos = map(i -> data_cube.z[][i], grid_z)
     vline_1 = backend.vlines!(ax_line_1, grid_z_pos, color="#60100b60", linewidth=2, linestyle = :dash)
     vline_2 = backend.vlines!(ax_line_2, grid_z_pos, color="#60100b60", linewidth=2, linestyle = :dash)
+    vline_parameter_plane = backend.vlines!(ax_parameter_plane, grid_x_pos, color="#0b106060", linewidth=2, linestyle = :dash)
+    hline_parameter_plane = backend.hlines!(ax_parameter_plane, grid_y_pos, color="#0b106060", linewidth=2, linestyle = :dash)
     vline_plane = backend.vlines!(ax_plane_channel, grid_x_pos, color="#0b106060", linewidth=2, linestyle = :dash)
     hline_plane = backend.hlines!(ax_plane_channel, grid_y_pos, color="#0b106060", linewidth=2, linestyle = :dash)
 
@@ -154,12 +208,14 @@ function interactive_display(grid::SpmGrid, response_channel::String="", respons
         data_new = get_data_line(grid, s, grid_x[], grid_y[], :)
         set_observable_values!(data_line_1, data_new)
         backend.autolimits!(ax_line_1)
+        grid_x[] = grid_x[]  # trigger labels update
     end
 
     backend.on(menu_channel2.selection) do s
         data_new = get_data_line(grid, s, grid_x[], grid_y[], :)
         set_observable_values!(data_line_2, data_new)
         backend.autolimits!(ax_line_2)
+        grid_x[] = grid_x[]  # trigger labels update
     end
 
     if bwd_exists
@@ -170,12 +226,14 @@ function interactive_display(grid::SpmGrid, response_channel::String="", respons
             set_observable_values!(data_cube, data_new)
             data_new = get_data_plane(grid, response_channel, :, :, grid_z[], bwd=!s)
             set_observable_values!(data_plane, data_new)
+            grid_x[] = grid_x[]  # trigger labels update
         end
     end
 
     backend.on(menu_parameter.selection) do s
         data_new = get_data_parameter_plane(grid, s, :, :, backend=backend)
         set_observable_values!(data_parameter_plane, data_new)
+        grid_x[] = grid_x[]  # trigger labels update
     end
 
     backend.on(grid_z) do z

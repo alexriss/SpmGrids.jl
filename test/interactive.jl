@@ -58,6 +58,11 @@ using GLMakie
     @test content(f[4,2][1,1]).ylabel[] == "Phase / mdeg"
     @test content(f[4,2][1,1]).title[] == "grid x=3.95 nm, grid y=789.47 pm"
 
+    # labels
+    @test content(f[4,1][1,1, TopRight()][1,1]).text[] == "200.00"
+    @test content(f[2,2][1,1, TopRight()][1,1]).text[] == "-6.14"
+    @test content(f[4,2][1,1, TopRight()][1,1]).text[] == "-7.41"
+
     grid = load_grid("Grid Spectroscopy006.3ds")
     add_channel!(x -> abs.(x), grid, "AbsCurrent", "A", "Current", skip_bwd=true)
     add_channel!(x -> abs.(x), grid, "AbsBias", "V", "Bias")
@@ -99,6 +104,10 @@ using GLMakie
     @test content(f[3,1][1,1]).selection[] == "Sweep Start"  # menu parameter, selection observable\
     
     @test content(f[3,2][1,1]).selection[] == "Current"  # menu channel2, selection observable
+
+    @test content(f[4,1][1,1, TopRight()][1,1]).text[] == "200.00"
+    @test content(f[2,2][1,1, TopRight()][1,1]).text[] == "-2.13   -2.05"
+    @test content(f[4,2][1,1, TopRight()][1,1]).text[] == "-0.02   -0.01"
     
     # change values, mostly NaN values to be plotted
     content(f[1,2][1,1]).selection[] = "Bias"
@@ -144,4 +153,9 @@ using GLMakie
     @test content(f[2,2][1,1]).ylabel[] == "AbsBias / V"
     @test content(f[4,2][1,1]).xlabel[] == "Z / m"  #  plot 2
     @test content(f[4,2][1,1]).ylabel[] == "AbsCurrent / A"
+
+    # labels
+    @test content(f[4,1][1,1, TopRight()][1,1]).text[] == "NaN"
+    @test content(f[2,2][1,1, TopRight()][1,1]).text[] == "NaN   NaN"
+    @test content(f[4,2][1,1, TopRight()][1,1]).text[] == "NaN"
 end

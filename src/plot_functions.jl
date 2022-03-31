@@ -465,20 +465,22 @@ function get_data_line(grid::SpmGrid, response_channel::String,
 
     x = x .* x_factor
     y = y .* y_factor
+
     # sort x axis if necessary
-    if !issorted(x) && !issorted(x, rev=true)
+    if !issorted(skipnan(x)) && !issorted(skipnan(x), rev=true)
+        @show "unsorted", x
         combined_sort!(x, y)
     end
     if bwd && length(y_bwd) > 0
         x_bwd = x_bwd .* x_factor
         y_bwd = y_bwd .* y_factor
-        if !issorted(x_bwd) && !issorted(x_bwd, rev=true)
+        if !issorted(skipnan(x_bwd)) && !issorted(skipnan(x_bwd), rev=true)
             combined_sort!(x_bwd, y_bwd)
         end
     end
 
-    xy = Point2f.(x, y)
-    xy_bwd = Point2f.(x_bwd, y_bwd)
+    xy = Point2.(x, y)
+    xy_bwd = Point2.(x_bwd, y_bwd)
 
     if observable
         return (xy=Observable(xy), xy_bwd=Observable(xy_bwd),
