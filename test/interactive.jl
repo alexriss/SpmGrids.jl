@@ -7,17 +7,17 @@ using GLMakie
     @test content(f[1,1][1,1]).xlabel[] == "grid x / nm"  # cube
     @test content(f[1,1][1,1]).ylabel[] == "grid y / nm"
     @test content(f[1,1][1,1]).zlabel[] == "Bias / mV"
-    @test similar(content(f[1,1][1,2]).limits[], (-160.23476, 196.02937))  # cube colorbar
+    @test approx(content(f[1,1][1,2]).limits[], (-160.23476, 196.02937))  # cube colorbar
     @test content(f[1,1][1,2]).label[] == "Current / pA"
 
     @test content(f[2,1][1,1]).xlabel[] == "grid x / nm"  #  plane
     @test content(f[2,1][1,1]).ylabel[] == "grid y / nm"
-    @test similar(content(f[2,1][1,2]).limits[], (50.462166, 196.02937))  # plane colorbar
+    @test approx(content(f[2,1][1,2]).limits[], (50.462166, 196.02937))  # plane colorbar
     @test content(f[2,1][1,2]).label[] == "Current / pA"
 
     @test content(f[4,1][1,1]).xlabel[] == "grid x / nm"  #  par plane
     @test content(f[4,1][1,1]).ylabel[] == "grid y / nm"
-    @test similar(content(f[4,1][1,2]).limits[], (103.536995, 117.787))  # par plane colorbar
+    @test approx(content(f[4,1][1,2]).limits[], (103.536995, 117.787))  # par plane colorbar
     @test content(f[4,1][1,2]).label[] == "X / nm"
 
     @test content(f[2,2][1,1]).xlabel[] == "Bias / mV"  #  plot 1
@@ -45,11 +45,11 @@ using GLMakie
     content(f[3,1][1,1]).selection[] = "Sweep Start"
     content(f[3,2][1,1]).selection[] = "Phase"
 
-    @test similar(content(f[1,1][1,2]).limits[], (-7.0765924, -5.8998227))  # cube colorbar
+    @test approx(content(f[1,1][1,2]).limits[], (-7.0765924, -5.8998227))  # cube colorbar
     @test content(f[1,1][1,2]).label[] == "Frequency Shift / Hz"
-    @test similar(content(f[2,1][1,2]).limits[], (-6.503672, -6.044674))  # plane colorbar
+    @test approx(content(f[2,1][1,2]).limits[], (-6.503672, -6.044674))  # plane colorbar
     @test content(f[2,1][1,2]).label[] == "Frequency Shift / Hz"
-    @test similar(content(f[4,1][1,2]).limits[], (198.0, 202.0))  # par plane colorbar
+    @test approx(content(f[4,1][1,2]).limits[], (198.0, 202.0))  # par plane colorbar
     @test content(f[4,1][1,2]).label[] == "Sweep Start / mV"
     @test content(f[2,2][1,1]).xlabel[] == "Bias / mV"  #  plot 1
     @test content(f[2,2][1,1]).ylabel[] == "Frequency Shift / Hz"
@@ -74,17 +74,17 @@ using GLMakie
     @test content(f[1,1][1,1]).xlabel[] == "grid x / nm"  # cube
     @test content(f[1,1][1,1]).ylabel[] == "grid y / nm"
     @test content(f[1,1][1,1]).zlabel[] == "Z [bwd] / nm"
-    @test similar(content(f[1,1][1,2]).limits[], (-27.851484, -1.9089116)) # cube colorbar
+    @test approx(content(f[1,1][1,2]).limits[], (-27.851484, -1.9089116)) # cube colorbar
     @test content(f[1,1][1,2]).label[] == "Frequency Shift [bwd] / Hz"
 
     @test content(f[2,1][1,1]).xlabel[] == "grid x / nm"  #  plane
     @test content(f[2,1][1,1]).ylabel[] == "grid y / nm"
-    @test similar(content(f[2,1][1,2]).limits[], (-2.4514494, -1.9089116))  # plane colorbar
+    @test approx(content(f[2,1][1,2]).limits[], (-2.4514494, -1.9089116))  # plane colorbar
     @test content(f[2,1][1,2]).label[] == "Frequency Shift [bwd] / Hz"
 
     @test content(f[4,1][1,1]).xlabel[] == "grid x / nm"  #  par plane
     @test content(f[4,1][1,1]).ylabel[] == "grid y / nm"
-    @test similar(content(f[4,1][1,2]).limits[], (197.99998, 201.99998))  # par plane colorbar
+    @test approx(content(f[4,1][1,2]).limits[], (197.99998, 201.99998))  # par plane colorbar
     @test content(f[4,1][1,2]).label[] == "Sweep Start / pm"
 
     @test content(f[2,2][1,1]).xlabel[] == "Z / nm"  #  plot 1
@@ -147,7 +147,7 @@ using GLMakie
     @test content(f[2,1][1,1]).title[] == "Z=-4.82 nm"
     @test content(f[2,1][1,2]).limits[] == (-0.01, 0.01)   # plane colorbar
     @test content(f[2,1][1,2]).label[] == "AbsBias [bwd] / V"
-    @test similar(content(f[4,1][1,2]).limits[], (0.026592601, 47.17634)) # par plane colorbar
+    @test approx(content(f[4,1][1,2]).limits[], (0.026592601, 47.17634)) # par plane colorbar
     @test content(f[4,1][1,2]).label[] == "AbsExcitation / mV"
     @test content(f[2,2][1,1]).xlabel[] == "Z / m"  #  plot 1
     @test content(f[2,2][1,1]).ylabel[] == "AbsBias / V"

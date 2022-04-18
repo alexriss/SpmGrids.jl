@@ -1,5 +1,6 @@
 using Dates
 using SpmGrids
+using SpmImages
 using Test
 
 
@@ -8,7 +9,7 @@ skipnan = SpmGrids.skipnan
 """
 Compares two Arrays/Tuples, each element should not deviate by more than `thresh` (relative to b).
 """
-function similar(a, b, thresh=1e-3)::Bool
+function approx(a, b, thresh=1e-3)::Bool
     if length(a) != length(b)
         return false
     end
@@ -31,6 +32,7 @@ function addtests(fname)
 end
 
 addtests("load_add_data.jl")
+addtests("stacks.jl")
 addtests("plot_spectrum.jl")
 addtests("plot_line.jl")
 addtests("plot_plane.jl")
