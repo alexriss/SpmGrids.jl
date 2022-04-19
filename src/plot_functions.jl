@@ -248,19 +248,6 @@ end
 
 
 """
-    xyindex_to_point(grid::SpmGrid, index_x::Int, index_y)::Tuple{Float64,Float64}
-
-Converts `index_x` and `index_y` of `grid` to point coordinates in physical units.
-"""
-function xyindex_to_point(grid::SpmGrid, index_x::Int, index_y::Int)::Tuple{Float64,Float64}
-    gridx_span = range(0, grid.size[1], length=grid.pixelsize[1])
-    gridy_span = range(0, grid.size[2], length=grid.pixelsize[2])
-
-    return gridx_span[index_x], gridy_span[index_y]
-end
-
-
-"""
     plot_spectrum(grid::SpmGrid, sweep_channel::String, response_channel::String,
         x_index::GridRange, y_index::GridRange, channel_index::GridRange=:;
         bwd::Bool=true, ax::Any=nothing, backend::Module=Main,

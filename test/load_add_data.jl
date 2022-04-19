@@ -75,6 +75,11 @@
     @test occursin("Using forward", logs[1].message)
 
     @test all(xyindex_to_point(grid, 1, 10) .≈ (0.0, 7.105263157894736e-9))
+    @test all(xyindex_to_point(grid, 1, 1) .≈ (0.0, 0.0))
+    @test all(xyindex_to_point(grid, grid.pixelsize...) .≈ Tuple(grid.size))
+    @test point_to_xyindex(grid, [0.0, 7.105263157894736e-9]) == (1, 10)
+    @test point_to_xyindex(grid, [0.0, 0.0]) == (1, 1)
+    @test point_to_xyindex(grid, grid.size) == Tuple(grid.pixelsize)
 
     grid = load_grid("Grid Spectroscopy006.3ds")
     @test has_parameter(grid, "Z offset")

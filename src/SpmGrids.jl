@@ -7,12 +7,13 @@ using GeometryBasics
 using Observables
 using Printf
 using SpmSpectroscopy
+using SpmImages
 using TOML
 
 export @bwd_str, @ch_str, @par_str
 export load_grid, channel_names, parameter_names, has_channel, has_parameter
 export get_data, get_channel, get_parameter, add_channel!, add_parameter!
-export xyindex_to_point
+export xyindex_to_point, point_to_xyindex
 export plot_spectrum, plot_line, plot_plane, plot_cube, plot_parameter_plane
 export interactive_display
 export fit_KPFM!, deconvolve_force!
@@ -66,6 +67,7 @@ SpmGrid(filename::String) = SpmGrid(
     )
 
 
+include("stack_functions.jl")
 include("plot_functions.jl")
 include("interactive_functions.jl")
 include("domain_functions.jl")
@@ -206,7 +208,6 @@ function load_grid(filename::AbstractString; header_only::Bool=false)::SpmGrid
             read_binary_data!(grid, f, num_parameters)
         end
     end
-
 
     return grid
 end
@@ -598,6 +599,30 @@ function get_data(grid::SpmGrid, name::AbstractString,
         """Available parameter names are: $(join(parameter_names(grid), ", "))."""
         ))
     end
+end
+
+
+"""
+    xyindex_to_point(grid::SpmGrid, index_x::Int, index_y)::Tuple{Float64,Float64}
+
+Converts `index_x` and `index_y` of `grid` to point coordinates in physical units.
+"""
+function xyindex_to_point(grid::SpmGrid, index_x::Int, index_y::Int)::Tuple{Float64,Float64}
+    return Tuple(((index_x, index_y) .- 1) .* grid.size ./ (grid.pixelsize .- 1))
+
+    # gridx_span = range(0, grid.size[1], length=grid.pixelsize[1])
+    # gridy_span = range(0, grid.size[2], length=grid.pixelsize[2])
+    # return gridx_span[index_x], gridy_span[index_y]
+end
+
+
+"""
+    point_to_xyindex(grid::SpmGrid, point::Vector{Float64})::Tuple{Int,Int}
+
+Converts `point` (in physical units) of `grid` to index_x and index_y
+"""
+function point_to_xyindex(grid::SpmGrid, point::Vector{Float64})::Tuple{Int,Int}
+    return round.(Int, Tuple(1 .+ point .* (grid.pixelsize .- 1) ./ grid.size))
 end
 
 
