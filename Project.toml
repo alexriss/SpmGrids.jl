@@ -1,7 +1,7 @@
 name = "SpmGrids"
 uuid = "d9e2b492-b06c-4d87-a3ea-3420020b54f8"
 authors = ["Alex Riss"]
-version = "0.4.0"
+version = "0.5.0"
 
 [deps]
 DataStructures = "864edb3b-99cc-5e75-8d2d-829cb0a9cfe8"
@@ -10,6 +10,7 @@ GLMakie = "e9467ef8-e4e7-5192-8a1a-b1aee30e663a"
 GeometryBasics = "5c1252a2-5f33-56bf-86c9-59e7332b4326"
 Observables = "510215fc-4207-5dde-b226-833fc4488ee2"
 Printf = "de0858da-6303-5e67-8744-51eddeeeb8d7"
+SpmImages = "a5d333f8-9588-4c9f-ac4d-4583361e1fcb"
 SpmSpectroscopy = "9ab0b2fc-e013-4186-b0b9-58e9a8cad668"
 TOML = "fa267f1f-6049-4f14-aa54-33bafae1ed76"
 
@@ -20,6 +21,7 @@ GLMakie = "^0.5"
 GeometryBasics = "^0.4"
 Observables = "^0.4"
 SpmSpectroscopy = "^0.5.1"
+SpmImages = "^0.2.1"
 julia = "^1.7"
 
 [extras]

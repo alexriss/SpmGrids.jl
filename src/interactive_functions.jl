@@ -47,10 +47,15 @@ function interactive_display(grid::SpmGrid, response_channel::String="", respons
         response_channel2 = grid.channel_names[2]
     end
     if parameter === ""
-        parameter = grid.experiment_parameter_names[1]
+        if length(grid.experiment_parameter_names) > 0
+            parameter = grid.experiment_parameter_names[1]
+        else
+            parameter = grid.fixed_parameter_names[1]
+        end
     end
 
     if fig === nothing
+        check_makie_loaded(backend)
         if isdefined(backend, :set_window_config!)  # WGLMakie does not have it
             backend.set_window_config!(title="SpmGrids")
         end
@@ -290,7 +295,7 @@ function interactive_display(fname::String, response_channel::String="", respons
         throw(ArgumentError("File $fname not found."))
     end
     grid = load_grid(fname)
-    return interactive_display(grid, response_channel, response_channel2, parameter,;
+    return interactive_display(grid, response_channel, response_channel2, parameter;
         bwd=bwd, fig=fig, backend=backend, kwargs...)
 end
 

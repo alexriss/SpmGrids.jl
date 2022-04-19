@@ -5,12 +5,16 @@ using Test
 
 
 skipnan = SpmGrids.skipnan
+get_channel = SpmGrids.get_channel
 
 """
 Compares two Arrays/Tuples, each element should not deviate by more than `thresh` (relative to b).
 """
 function approx(a, b, thresh=1e-3)::Bool
     if length(a) != length(b)
+        return false
+    end
+    if isnan.(a) != isnan.(b)
         return false
     end
     if any(abs.(a .- b) ./ b .> thresh)
