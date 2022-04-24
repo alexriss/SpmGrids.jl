@@ -272,6 +272,37 @@ function interactive_display(grid::SpmGrid, response_channel::String="", respons
         backend.autolimits!(ax_line_2)
     end
 
+    # mouse interaction
+    for ax in (ax_plane_channel, ax_parameter_plane)
+        on(backend.events(ax.scene).mousebutton) do mb
+            if mb.button == backend.Mouse.left 
+                pos = Float64.(collect(backend.mouseposition(ax.scene)))
+                pos ./= (data_plane.x_factor[], data_plane.y_factor[])
+                idx = point_to_xyindex(grid, pos)
+                if all(idx .>= 1) && all(idx .<= grid.pixelsize)
+                    backend.set_close_to!(lsgrid.sliders[1], idx[1])
+                    backend.set_close_to!(lsgrid.sliders[2], idx[2])
+                    return backend.Consume(true)
+                end
+            end
+            return backend.Consume(false)
+        end
+    end
+
+    for (ax, xy_data) in zip((ax_line_1, ax_line_2), (data_line_1.xy[], data_line_2.xy[]))
+        on(backend.events(ax.scene).mousebutton) do mb
+            if mb.button == backend.Mouse.left 
+                pos = Float64(backend.mouseposition(ax.scene)[1])
+                idx = findmin(abs.(pos .- first.(xy_data)))[2]
+                if idx .>= 1 && idx <= grid.points
+                    backend.set_close_to!(lsgrid.sliders[3], idx)
+                    return backend.Consume(true)
+                end
+            end
+            return backend.Consume(false)
+        end
+    end
+
     return fig
 end
 
