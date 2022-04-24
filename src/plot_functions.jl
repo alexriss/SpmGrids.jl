@@ -569,9 +569,11 @@ function get_data_parameter_plane(grid::SpmGrid, parameter::String,
     x = gridx_span[x_index]
     y = gridy_span[y_index]
 
-    x_factor, x_prefix = get_factor_prefix(collect(x))
+    # common scale for both x and y
+    xy_prefix, xy_factor = get_factor_prefix(collect(vcat(x, y)))
+    x_factor, x_prefix = xy_prefix, xy_factor
+    y_factor, y_prefix = xy_prefix, xy_factor
     x_label = axis_label("grid x", grid.size_unit, x_prefix)
-    y_factor, y_prefix = get_factor_prefix(collect(y))
     y_label = axis_label("grid y", grid.size_unit, y_prefix)
 
     label = parameter
