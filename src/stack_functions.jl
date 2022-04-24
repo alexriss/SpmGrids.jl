@@ -1,3 +1,16 @@
+"""
+    load_grid(filenames::Vector{<:AbstractString}, by::Function=im->im.z,
+        name::AbstractString="Z_", unit::AbstractString="m";
+        only_overlap::Bool=false, header_only::Bool=false)::SpmGrid
+
+Loads a grid from a stack of image files. The sweep signal is specified with the `by` argument,
+as well as `name` and `unit`.
+The first image determines the pixel density, as well as the channels that will be available.
+Here, the backward channels will be associated with the backward scan direciton in the images.
+Ideally, all images should have the same pixel density and recorded channels.
+if `only_overlap` is true, then data is returned only for the pixels that are overlapping in all images.
+If `header_only` is `true`, then only the header is created.
+"""
 function load_grid(filenames::Vector{<:AbstractString}, by::Function=im->im.z,
     name::AbstractString="Z_", unit::AbstractString="m";
     only_overlap::Bool=false, header_only::Bool=false)::SpmGrid
@@ -12,7 +25,7 @@ end
     name::AbstractString="Z", unit::AbstractString="m";
     only_overlap::Bool=false, header_only::Bool=false)::SpmGrid
 
-Loads a grid from a stack of images files. The sweep signal is specified with the `by` argument,
+Loads a grid from a stack of images. The sweep signal is specified with the `by` argument,
 as well as `name` and `unit`.
 The first image determines the pixel density, as well as the channels that will be available.
 Here, the backward channels will be associated with the backward scan direciton in the images.
@@ -212,12 +225,10 @@ function stack_image!(grid::SpmGrid, image::SpmImage, slice::Int)
             grid_lower_left_idx[1]:grid_upper_right_idx[1],
             grid_lower_left_idx[2]:grid_upper_right_idx[2],
             idx_ch
-        ] .= @view SpmImages.get_channel(im, name).data[
-            im_lower_left_idx[1]:im_upper_right_idx[1],
-            im_lower_left_idx[2]:im_upper_right_idx[2]
-        ]
+        ] .= @views SpmImages.get_channel(im, name).data[
+            im_lower_left_idx[2]:im_upper_right_idx[2],
+            im_lower_left_idx[1]:im_upper_right_idx[1]
+        ]'
     end
 
 end
-
-# todo: drift calculation (in SpmImages), drift correction (in SpmGrid)
