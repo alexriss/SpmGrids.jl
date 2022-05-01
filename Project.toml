@@ -18,7 +18,7 @@ CairoMakie = "^0.7"
 DataStructures = "^0.18"
 GLMakie = "^0.5"
 GeometryBasics = "^0.4"
-Observables = "^0.4"
+Observables = "^0.4, 0.5"
 SpmSpectroscopy = "^0.5.1"
 julia = "^1.7"
 
