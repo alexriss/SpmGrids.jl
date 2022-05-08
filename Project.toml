@@ -16,7 +16,7 @@ TOML = "fa267f1f-6049-4f14-aa54-33bafae1ed76"
 [compat]
 CairoMakie = "^0.7"
 DataStructures = "^0.18"
-GLMakie = "^0.5"
+GLMakie = "^0.5, 0.6"
 GeometryBasics = "^0.4"
 Observables = "^0.4"
 SpmSpectroscopy = "^0.5.1"
