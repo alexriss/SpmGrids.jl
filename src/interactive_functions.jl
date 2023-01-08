@@ -55,9 +55,9 @@ function interactive_display(grid::SpmGrid, response_channel::String="", respons
     end
 
     if fig === nothing
-        check_makie_loaded(backend)
+        check_makie_loaded(backend, warn=false)
         if isdefined(backend, :set_window_config!)  # WGLMakie does not have it
-            backend.set_window_config!(title="SpmGrids")
+            backend.activate!(title="SpmGrids")
         end
         fontsize_theme = backend.Theme(fontsize = 10)
         backend.set_theme!(fontsize_theme)
@@ -72,6 +72,19 @@ function interactive_display(grid::SpmGrid, response_channel::String="", respons
     all_parameter_names = parameter_names(grid)
     parameter_names_units = map(all_parameter_names) do p
         p * " ($(get_parameter_unit(grid, p)))"
+    end
+
+    if response_channel ∉ all_channel_names
+        @warn "Channel name `$(response_channel)` not found."
+        response_channel = all_channel_names[1]
+    end
+    if response_channel2 ∉ all_channel_names
+        @warn "Channel name `$(response_channel2)` not found."
+        response_channel2 = all_channel_names[2]
+    end
+    if parameter ∉ all_parameter_names
+        @warn "Parameter name `$(parameter)` not found."
+        parameter = all_parameter_names[1]
     end
 
     bwd_exists = length(all_channel_names) != length(channel_names(grid, skip_bwd=false))
@@ -102,17 +115,18 @@ function interactive_display(grid::SpmGrid, response_channel::String="", respons
     # widgets 
 
     menu_channel = backend.Menu(g12[1,1], options=zip(channel_names_units, all_channel_names),
-        i_selected=findfirst(isequal(response_channel), all_channel_names), selection=response_channel)
+        default=channel_names_units[findfirst(isequal(response_channel), all_channel_names)])
     
     menu_channel2 = backend.Menu(g32[1,1], options=zip(channel_names_units, all_channel_names),
-        i_selected=findfirst(isequal(response_channel2), all_channel_names), selection=response_channel2)
+    default=channel_names_units[findfirst(isequal(response_channel2), all_channel_names)])
 
-    lsgrid = backend.labelslidergrid!(
-        fig,
-        ["grid X", "grid Y", "grid Z"],
-        [1:grid.pixelsize[1], 1:grid.pixelsize[2], 1:length(data_cube.z[])];
+    lsgrid = backend.SliderGrid(
+        g12[2,1],
+        (label="grid X", range=1:grid.pixelsize[1]),
+        (label="grid Y", range=1:grid.pixelsize[2]),
+        (label="grid Z", range=1:length(data_cube.z[])),
         tellheight = false)
-    g12[2,1] = lsgrid.layout
+
     grid_x, grid_y, grid_z = [s.value for s in lsgrid.sliders]
     grid_z_start = grid_z[]
 
@@ -137,7 +151,7 @@ function interactive_display(grid::SpmGrid, response_channel::String="", respons
     end
 
     menu_parameter = backend.Menu(g31[1,1], options=zip(parameter_names_units, all_parameter_names),
-        i_selected=findfirst(isequal(parameter), all_parameter_names), selection=parameter)
+        default=parameter_names_units[findfirst(isequal(parameter), all_parameter_names)])
 
     # plots
   

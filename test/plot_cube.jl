@@ -6,7 +6,7 @@ using CairoMakie
     grid = load_grid("Grid Spectroscopy006.3ds") # contains bwd and fwd, also is stopped after a few lines
     
     fig = CairoMakie.Figure(resolution = (800, 400));
-    ax = CairoMakie.Axis(fig[1, 1], perspectiveness=0.5)
+    ax = CairoMakie.Axis(fig[1, 1])
     logs, value = Test.collect_test_logs() do
         r = plot_cube(grid, "Amplitude", :, :, :,
             bwd=true, colormap=:Spectral_11, backend=CairoMakie)
@@ -50,7 +50,7 @@ using CairoMakie
 
     # wrong type of axis, should give a warning
     fig = CairoMakie.Figure(resolution = (800, 400));
-    ax = CairoMakie.Axis(fig[1, 1], perspectiveness=0.5)
+    ax = CairoMakie.Axis(fig[1, 1])
     logs, value = Test.collect_test_logs() do
         plot_cube(grid, "Bias", backend=CairoMakie)
     end

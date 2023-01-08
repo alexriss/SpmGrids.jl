@@ -17,6 +17,8 @@ using CairoMakie
     plot_line(grid, "Frequency Shift", 5:10, 1, 10, color_bwd="#e0e0e0")  
     @test ax.xlabel[] == "grid x / pm"
     @test ax.ylabel[] == "Frequency Shift / Hz"
+
+    CairoMakie.save("test.png", fig)   # limits seem to be calculated only when fig is displayed/saved
     @test abs(ax.finallimits[].origin[1] / 362.90323 - 1.0) < 0.2
     @test abs(ax.finallimits[].origin[2] / -2.4572 - 1.0) < 0.2
     @test abs(ax.finallimits[].widths[1] / 532.25806 - 1.0) < 0.2
@@ -27,6 +29,8 @@ using CairoMakie
     plot_line(grid, "Current", 5, :, 10, color_bwd="#e0e0e0")  
     @test ax.xlabel[] == "grid y / nm"
     @test ax.ylabel[] == "Current / fA"
+
+    CairoMakie.save("test.png", fig)   # limits seem to be calculated only when fig is displayed/saved
     @test abs(ax.finallimits[].origin[1] / -0.00967742 - 1.0) < 0.2
     @test abs(ax.finallimits[].origin[2] / -34.985077 - 1.0) < 0.2
     @test abs(ax.finallimits[].widths[1] / 0.21290325 - 1.0) < 0.2
@@ -37,6 +41,8 @@ using CairoMakie
     plot_line(grid, "Frequency Shift", 5, 2, 1:120, color_bwd="#e0e0e0")  
     @test ax.xlabel[] == "Z / nm"
     @test ax.ylabel[] == "Frequency Shift / Hz"
+
+    CairoMakie.save("test.png", fig)   # limits seem to be calculated only when fig is displayed/saved
     @test abs(ax.finallimits[].origin[1] / -4.942342 - 1.0) < 0.2
     @test abs(ax.finallimits[].origin[2] / -7.784694 - 1.0) < 0.2
     @test abs(ax.finallimits[].widths[1] / 0.5133338 - 1.0) < 0.2
@@ -48,6 +54,8 @@ using CairoMakie
         sweep_channel="Z")
     @test ax.xlabel[] == "Z / nm"
     @test ax.ylabel[] == "Frequency Shift / Hz"
+
+    CairoMakie.save("test.png", fig)   # limits seem to be calculated only when fig is displayed/saved
     @test abs(ax.finallimits[].origin[1] / -4.942342 - 1.0) < 0.2
     @test abs(ax.finallimits[].origin[2] / -7.784694 - 1.0) < 0.2
     @test abs(ax.finallimits[].widths[1] / 0.5133338 - 1.0) < 0.2

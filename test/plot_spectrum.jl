@@ -37,6 +37,7 @@ using CairoMakie
     @test ax.xlabel[] == "Bias / mV"
     @test ax.ylabel[] == "Current / pA"
 
+    CairoMakie.save("test.png", fig)   # limits seem to be calculated only when fig is displayed/saved
     @test abs(ax.finallimits[].origin[1] / -115.00001 - 1.0) < 0.2
     @test abs(ax.finallimits[].origin[2] / -115.49187 - 1.0) < 0.2
 

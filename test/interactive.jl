@@ -2,8 +2,20 @@ using GLMakie
 
 
 @testset "interactive" begin
-    f = interactive_display("Grid Spectroscopy002.3ds", backend=GLMakie, colormap=:lajolla)
+    logs, value = Test.collect_test_logs() do
+        f = interactive_display("Grid Spectroscopy002.3ds", "chname", "chname2", "parname", backend=GLMakie, colormap=:lajolla)
+    end
+    @test occursin("chname", logs[1].message)
+    @test occursin("not found", logs[1].message)
+    @test occursin("chname2", logs[2].message)
+    @test occursin("not found", logs[2].message)
+    @test occursin("parname", logs[3].message)
+    @test occursin("not found", logs[3].message)
+    @test content(f[1,2][1,1]).selection[] == "Current"  # menu channel
+    @test content(f[3,2][1,1]).selection[] == "Applied Voltage measured"  # menu channel2
+    @test content(f[3,1][1,1]).selection[] == "Sweep Start"  # menu parameter
 
+    f = interactive_display("Grid Spectroscopy002.3ds", backend=GLMakie, colormap=:lajolla)
     @test content(f[1,1][1,1]).xlabel[] == "grid x / nm"  # cube
     @test content(f[1,1][1,1]).ylabel[] == "grid y / nm"
     @test content(f[1,1][1,1]).zlabel[] == "Bias / mV"
@@ -29,19 +41,19 @@ using GLMakie
     @test content(f[4,2][1,1]).title[] == "grid x=0 m, grid y=0 m"
 
     @test content(f[1,2][1,1]).selection[] == "Current"  # menu channel1, selection observable
-    @test content(f[1,2][2,1][1,2]).value[] == 1  # grid x
-    @test content(f[1,2][2,1][2,2]).value[] == 1  # grid y
-    @test content(f[1,2][2,1][3,2]).value[] == 1  # grid z
+    @test content(f[1,2][2,1]).sliders[1].value[] == 1  # grid x
+    @test content(f[1,2][2,1]).sliders[2].value[] == 1  # grid y
+    @test content(f[1,2][2,1]).sliders[3].value[] == 1  # grid z
     
-    @test content(f[3,1][1,1]).selection[] == "X"  # menu parameter, selection observable\
+    @test content(f[3,1][1,1]).selection[] == "X"  # menu parameter, selection observable
     
     @test content(f[3,2][1,1]).selection[] == "Applied Voltage measured"  # menu channel2, selection observable
     
     # change values
     content(f[1,2][1,1]).selection[] = "Frequency Shift"
-    content(f[1,2][2,1][1,2]).value[] = 6
-    content(f[1,2][2,1][2,2]).value[] = 2
-    content(f[1,2][2,1][3,2]).value[] = 69
+    content(f[1,2][2,1]).sliders[1].value[] = 6
+    content(f[1,2][2,1]).sliders[2].value[] = 2
+    content(f[1,2][2,1]).sliders[3].value[] = 69
     content(f[3,1][1,1]).selection[] = "Sweep Start"
     content(f[3,2][1,1]).selection[] = "Phase"
 
@@ -96,9 +108,9 @@ using GLMakie
     @test content(f[4,2][1,1]).title[] == "grid x=0 m, grid y=0 m"
 
     @test content(f[1,2][1,1]).selection[] == "Frequency Shift"  # menu channel1, selection observable
-    @test content(f[1,2][2,1][1,2]).value[] == 1  # grid x
-    @test content(f[1,2][2,1][2,2]).value[] == 1  # grid y
-    @test content(f[1,2][2,1][3,2]).value[] == 1  # grid z
+    @test content(f[1,2][2,1]).sliders[1].value[] == 1  # grid x
+    @test content(f[1,2][2,1]).sliders[2].value[] == 1  # grid y
+    @test content(f[1,2][2,1]).sliders[3].value[] == 1  # grid z
     @test content(f[1,2][3,1][1,2]).active[] == false  # backward/forward
     
     @test content(f[3,1][1,1]).selection[] == "Sweep Start"  # menu parameter, selection observable\
@@ -111,9 +123,9 @@ using GLMakie
     
     # change values, mostly NaN values to be plotted
     content(f[1,2][1,1]).selection[] = "Bias"
-    content(f[1,2][2,1][1,2]).value[] = 9
-    content(f[1,2][2,1][2,2]).value[] = 6
-    content(f[1,2][2,1][3,2]).value[] = 96
+    content(f[1,2][2,1]).sliders[1].value[] = 9
+    content(f[1,2][2,1]).sliders[2].value[] = 6
+    content(f[1,2][2,1]).sliders[3].value[] = 96
     content(f[1,2][3,1][1,2]).active = true
     content(f[3,1][1,1]).selection[] = "Scan:Bias"
     content(f[3,2][1,1]).selection[] = "Excitation"

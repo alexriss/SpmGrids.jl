@@ -208,13 +208,16 @@ end
 
 
 """
-    check_makie_loaded(backend::Module, ax::Any=nothing; axis3::Bool=false)::Nothing
+    check_makie_loaded(backend::Module, ax::Any=nothing;
+        axis3::Bool=false, warn::Bool=true)::Nothing
 
 Checks if a [Makie](https://makie.juliaplots.org/) backend is loaded. Throws an error if none is loaded.
 Sets the `current_axis` to `ax`. Also sets up a figure and axis if necessary.
 If `axis3` is `true` then it sets up a 3D axis.
+If `warn` is `true`, warnings will be displayed.
 """
-function check_makie_loaded(backend::Module, ax::Any=nothing; axis3::Bool=false)::Nothing
+function check_makie_loaded(backend::Module, ax::Any=nothing;
+    axis3::Bool=false, warn::Bool=true)::Nothing
     if !isdefined(backend, :GLMakie) && !isdefined(backend, :CairoMakie) && !isdefined(backend, :WGLMakie)
         error("No Makie backend loaded. Please load either the GL, Cairo or WGL backends. See https://makie.juliaplots.org/ for more information.")
     end
@@ -236,10 +239,10 @@ function check_makie_loaded(backend::Module, ax::Any=nothing; axis3::Bool=false)
     end
 
     if axis3 && typeof(backend.current_axis()) != backend.Axis3
-        @warn "The current axis is not a 3D axis. Please use a 3D axis for 3D plots. Generating a 3D axis at [1,1]."
+        warn && @warn "The current axis is not a 3D axis. Please use a 3D axis for 3D plots. Generating a 3D axis at [1,1]."
         backend.Axis3(backend.current_figure()[1,1], perspectiveness=0.5)
     elseif !axis3 && typeof(backend.current_axis()) != backend.Axis
-        @warn "The current axis is not a 2D axis. Please use a 2D axis for 2D plots. Generating a 2D axis at [1,1]."
+        warn && @warn "The current axis is not a 2D axis. Please use a 2D axis for 2D plots. Generating a 2D axis at [1,1]."
         backend.Axis(backend.current_figure()[1,1])
     end
 
@@ -455,7 +458,6 @@ function get_data_line(grid::SpmGrid, response_channel::String,
 
     # sort x axis if necessary
     if !issorted(skipnan(x)) && !issorted(skipnan(x), rev=true)
-        @show "unsorted", x
         combined_sort!(x, y)
     end
     if bwd && length(y_bwd) > 0
