@@ -248,3 +248,60 @@ end
     z = get_channel(grid, bwd"Z")
     @test all(skipnan(get_data(grid, ch"Z rel"bwd)) .== skipnan(z .- get_parameter(grid, "Sweep Start")))
 end
+
+@testset "resize" begin
+    grid = load_grid("Grid Spectroscopy006.3ds")
+
+    err = nothing
+    try
+        resize!(grid, 12)
+    catch err
+    end
+    @test err isa Exception
+    @test contains(sprint(showerror, err), "at least two dimensions")
+
+    err = nothing
+    try
+        resize!(grid)
+    catch err
+    end
+    @test err isa Exception
+    @test contains(sprint(showerror, err), "at least two dimensions")
+
+    logs, value = Test.collect_test_logs() do
+        resize!(grid, 12, 12, 12, 12)
+    end
+    @test occursin("too many", logs[1].message)
+
+    logs, value = Test.collect_test_logs() do
+        resize!(grid, (12, 12, 12, 12))
+    end
+    @test occursin("too many", logs[1].message)
+
+    logs, value = Test.collect_test_logs() do
+        resize!(grid, ratio=(12, 12, 12, 12))
+    end
+    @test occursin("too many", logs[1].message)
+
+    pixelsize_old = grid.pixelsize
+    points_old = grid.points
+
+    add_parameter!((x,y) -> y-x, grid, "Sweep Diff before", "", "Sweep Start", "Sweep End")
+
+    resize!(grid, ratio=0.5)
+    @test grid.pixelsize == ceil.(Int, pixelsize_old * 0.5)
+    @test grid.points == ceil.(Int, points_old * 0.5)
+    z = get_channel(grid, "Z")
+    @test size(z)[1:2] == Tuple(ceil.(Int, pixelsize_old * 0.5))
+    @test size(z)[3] == ceil.(Int, points_old * 0.5)
+    @test size(get_parameter(grid, "Sweep Start")) == Tuple(ceil.(Int, pixelsize_old * 0.5))
+    @test size(get_parameter(grid, "Z offset")) == Tuple(ceil.(Int, pixelsize_old * 0.5))
+
+    add_parameter!((x,y) -> y-x, grid, "Sweep Diff", "", "Sweep Start", "Sweep End")
+    @test size(get_parameter(grid, "Sweep Diff")) == Tuple(ceil.(Int, pixelsize_old * 0.5))
+    @test size(get_parameter(grid, "Sweep Diff before")) == Tuple(ceil.(Int, pixelsize_old * 0.5))
+
+    grid = load_grid("Grid Spectroscopy006.3ds")
+    resize!(grid, (12, 12, 12))
+
+end

@@ -3,6 +3,7 @@ module SpmGrids
 # using DataFrames
 using DataStructures: OrderedDict
 using Dates
+using ImageTransformations
 using GeometryBasics
 using Observables
 using Printf
@@ -10,9 +11,11 @@ using SpmSpectroscopy
 using SpmImages
 using TOML
 
+
 export @bwd_str, @ch_str, @par_str
 export load_grid, channel_names, parameter_names, has_channel, has_parameter
-export get_data, get_channel, get_parameter, add_channel!, add_parameter!
+export get_data, get_channel, get_parameter, add_channel!, add_parameter!, resize!
+export get_channel_unit, get_parameter_unit
 export xyindex_to_point, point_to_xyindex
 export plot_spectrum, plot_line, plot_plane, plot_cube, plot_parameter_plane
 export interactive_display
@@ -242,6 +245,74 @@ end
 
 
 """
+    resize!(grid::SpmGrid, args...; kwargs...)
+
+Resizes the grid in its dimensions. Arguments and keyword-arguments are similar as for the [ImageTransformations.imresize](@ref) function.
+
+Examples:
+```julia
+julia> resize!(grid, ratio=0.5)  # resize all dimensions by a factor 0.5
+julia> resize!(grid, ratio=(0.5, 0.5))  # resize x and y dimensions by a factor 0.5
+julia> resize!(grid, ratio=(0.5, 0.5, 2.0))  # resize x and y dimensions by a factor 0.5, z dimension by a factor of 2
+julia> resize!(grid, 64, 64)    # resize x and y dimensions to a specific pixelsize
+julia> resize!(grid, 32, 96, 128)   # resize all dimensions to a specific pixelsize
+```
+"""
+function Base.resize!(grid::SpmGrid, args...; kwargs...)::Nothing
+    oldsize = grid.pixelsize..., grid.points
+
+    if length(args) == 1
+        if length(args[1]) == 2
+            args = (args[1]..., oldsize[3])
+        elseif length(args[1]) > 3
+            @warn "New size is specified for too many dimensions. Only using the first three."
+            args = args[1][begin:begin+2]
+        elseif length(args[1]) <= 1
+            throw(ArgumentError("Please specify the pixelsize for at least two dimensions."))
+        end
+
+        newsize = ceil.(Int, args[1])
+    elseif length(args) == 2
+        args = (args..., oldsize[3])
+        newsize = ceil.(Int, args)
+    elseif length(args) == 3
+        newsize = ceil.(Int, args)
+    elseif length(args) > 3
+        @warn "New size is specified for too many dimensions. Only using the first three."
+        args = args[1:3]
+        newsize = ceil.(Int, args)
+    elseif haskey(kwargs, :ratio)
+        kwargs = Dict{Symbol,Any}(kwargs)
+        if length(kwargs[:ratio]) == 2
+            kwargs[:ratio] = (kwargs[:ratio]..., 1)
+        elseif length(kwargs[:ratio]) > 3
+            @warn "Resize ratio is specified for too many dimensions. Only using the first three."
+            kwargs[:ratio] = kwargs[:ratio][begin:begin+2]
+        end
+
+        newsize = ceil.(Int, oldsize .* kwargs[:ratio])
+    elseif length(args) <= 1
+        throw(ArgumentError("Please specify the pixelsize for at least two dimensions."))
+    end
+
+    # resize and replace/override existing channels and parameters
+    for n in channel_names(grid)
+        add_channel!(x -> imresize(x, newsize; kwargs...), grid, n, get_channel_unit(grid, n), n, force=true)
+    end
+    for n in parameter_names(grid)
+        newsize_2d = newsize[begin:begin+1]
+        add_parameter!(x -> imresize(x, newsize_2d; kwargs...), grid, n, get_parameter_unit(grid, n), n, force=true)
+    end
+
+    # set new dimensions
+    grid.pixelsize = [newsize[1], newsize[2]]
+    grid.points = newsize[3]
+
+    return nothing
+end
+
+
+"""
     channel_name_bwd(name::AbstractString)::AbstractString
 
 Returns the name of the channel for the bwds direction.
@@ -303,6 +374,23 @@ end
 
 
 """
+    get_channel_unit(grid::SpmGrid, name::AbstractString)::AbstractString
+    
+Returns the unit associated with the channel `name`.
+"""
+function get_channel_unit(grid::SpmGrid, name::AbstractString)::String
+    name = strip_prefix(name, PREFIX_channel)
+    if haskey(grid.channel_units, name)
+        return grid.channel_units[name]
+    else
+        all_channel_names = channel_names(grid)
+        throw(ArgumentError("""Channel unit for "$(name)" not found in the SpmGrid. """ *
+        """Available channel names are: $(join(all_channel_names, ", "))."""))
+    end
+end
+
+
+"""
     get_channel(grid::SpmGrid, name::AbstractString,
         x_index::GridRange=:, y_index::GridRange=:, channel_index::GridRange=:;
         bwd::Bool=false)::SubArray{Float64}
@@ -352,22 +440,23 @@ end
 
 """
     add_channel!(grid::SpmGrid, name::AbstractString, unit::AbstractString,
-        data::AbstractArray{Float64})::Nothing
+        data::AbstractArray{Float64}; force::Bool=false)::Nothing::Nothing
 
 Adds a generated channel with `name`, `unit` and `data` to the `grid`.
 The `data` must be of the same size as channel data in the `grid`, i.e. `grid.points` x `grid.pixelsize...`.
 The `name` cannot be the same as names in the original channel names.
 If the `name` exists in the generated channel names, it will be overwritten.
+If `force` is `true`, then the consistency checks for name and dimensions are overriden.
 """
 function add_channel!(grid::SpmGrid, name::AbstractString, unit::AbstractString,
-    data::AbstractArray{Float64})::Nothing
+    data::AbstractArray{Float64}; force::Bool=false)::Nothing
 
     name = strip_prefix(name, PREFIX_channel)
 
-    if size(data) != (grid.pixelsize..., grid.points)
+    if !force && size(data) != (grid.pixelsize..., grid.points)
         throw(ArgumentError("The data array needs to be of size $((grid.pixelsize[1], grid.pixelsize[2], grid.points)), but it has size $(size(data))."))
     end
-    if name in grid.channel_names
+    if !force && name in grid.channel_names
         throw(ArgumentError("Channel name $(name) already exists in the original grid data. Please choose a different name."))
     end
     if length(name) === 0
@@ -383,7 +472,7 @@ end
 
 """
     add_channel!(func::Function, grid::SpmGrid, name::AbstractString, unit::AbstractString,
-        args...; skip_bwd::Bool=false::Nothing
+        args...; skip_bwd::Bool=false, force::Bool=false)::Nothing
 
 Adds a generated channel with `name`, `unit` and `data` to the `grid`.
 The channel is generated by the function `func` that
@@ -392,6 +481,7 @@ Any broadcasting functionality should be implemented in `func`.
 The `name` cannot be the same as names in the original channel names.
 If the `name` exists in the generated channel names, it will be overwritten.
 If `skip_bwd` is `false` (default), then bwd channels will be added if feasible.
+If `force` is `true`, then the consistency checks for name and dimensions are overriden.
 
 # Examples
 ```julia
@@ -401,18 +491,18 @@ julia> add_channel!((x,y) -> x + y, grid, "", "A", "Current", "AbsCurrent")
 ```
 """
 function add_channel!(func::Function, grid::SpmGrid, name::AbstractString, unit::AbstractString,
-    args...; skip_bwd::Bool=false)::Nothing
+    args...; skip_bwd::Bool=false, force::Bool=false)::Nothing
 
     name = strip_prefix(name, PREFIX_channel)
 
     channels = get_data.((grid, ), args)  # get_data automatically prefers channel names
     data = func(channels...)
-    add_channel!(grid, name, unit, data)
+    add_channel!(grid, name, unit, data, force=force)
 
     if !skip_bwd
         channels = get_data.((grid, ), args, bwd=true)
         data = func(channels...)
-        add_channel!(grid, channel_name_bwd(name), unit, data)
+        add_channel!(grid, channel_name_bwd(name), unit, data, force=force)
     end
 
     return nothing
@@ -505,22 +595,23 @@ end
 
 """
     add_parameter!(grid::SpmGrid, name::AbstractString, unit::AbstractString,
-        data::AbstractArray{Float64})::Nothing
+        data::AbstractArray{Float64}; force::Bool=false)::Nothing
 
 Adds a generated parameter with `name`, `unit` and `data` to the `grid`.
 The `data` must be of the same size as parameter data in the `grid`, i.e. `grid.pixelsize`.
 The `name` cannot be the same as names in the original parameter names.
 If the `name` exists in the generated parameter names, it will be overwritten.
+If `force` is `true`, then the consistency checks for name and dimensions are overriden.
 """
 function add_parameter!(grid::SpmGrid, name::AbstractString, unit::AbstractString,
-    data::AbstractArray{Float64})::Nothing
+    data::AbstractArray{Float64}; force::Bool=false)::Nothing
 
     name = strip_prefix(name, PREFIX_parameter)
 
-    if collect(size(data)) != grid.pixelsize
+    if !force && collect(size(data)) != grid.pixelsize
         throw(ArgumentError("The data array needs to be of size $(Tuple(grid.pixelsize)), but it has size $(size(data))."))
     end
-    if name in grid.fixed_parameter_names || name in grid.experiment_parameter_names
+    if !force && (name in grid.fixed_parameter_names || name in grid.experiment_parameter_names)
         throw(ArgumentError("Parameter name $(name) already exists in the original grid data. Please choose a different name."))
     end
     if length(name) === 0
@@ -536,7 +627,7 @@ end
 
 """
     add_parameter!(func::Function, grid::SpmGrid, name::AbstractString, unit::AbstractString,
-        args...::AbstractString)::Nothing
+        args...::AbstractString; force::Bool=false)::Nothing
 
 Adds a generated parameter with `name`, `unit` and `data` to the `grid`.
 The parameter is generated by the function `func` that
@@ -544,6 +635,7 @@ takes other parameter/channels specified by `args...` as input parameters.
 Any broadcasting functionality should be implemented in `func`.
 The `name` cannot be the same as names in the original parameter names.
 If the `name` exists in the generated parameter names, it will be overwritten.
+If `force` is `true`, then the consistency checks for name and dimensions are overriden.
 
 # Examples
 ```julia
@@ -552,7 +644,7 @@ julia> add_parameter!(x -> abs(x), grid, "Scan:ExcitationAbs", "V", "Scan:Excita
 ```
 """
 function add_parameter!(func::Function, grid::SpmGrid, name::AbstractString, unit::AbstractString,
-    args...)::Nothing
+    args...; force::Bool=false)::Nothing
 
     name = strip_prefix(name, PREFIX_parameter)
 
@@ -565,7 +657,7 @@ function add_parameter!(func::Function, grid::SpmGrid, name::AbstractString, uni
     end
 
     data = func(p...)
-    add_parameter!(grid, name, unit, data)
+    add_parameter!(grid, name, unit, data, force=force)
 
     return nothing
 end
