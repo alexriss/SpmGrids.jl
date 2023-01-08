@@ -314,6 +314,17 @@ end
     @test size(get_parameter(grid, "Sweep Start")) == (12, 12)
     @test size(get_parameter(grid, "Z offset")) == (12, 12)
 
+    pixelsize_old = grid.pixelsize
+    points_old = grid.points
+    resize!(grid, 6, 12, 18)
+    @test grid.pixelsize == [6,12]
+    @test grid.points == 18
+    z = get_channel(grid, "Z")
+    @test size(z)[1:2] == (6,12)
+    @test size(z)[3] == 18
+    @test size(get_parameter(grid, "Sweep Start")) == (6, 12)
+    @test size(get_parameter(grid, "Z offset")) == (6, 12)
+
     grid = load_grid("Grid Spectroscopy006.3ds")
     pixelsize_old = grid.pixelsize
     points_old = grid.points
