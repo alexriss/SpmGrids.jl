@@ -269,9 +269,11 @@ function Base.resize!(grid::SpmGrid, args...; kwargs...)::Nothing
             args = args[1][begin:begin+2]
         elseif length(args[1]) <= 1
             throw(ArgumentError("Please specify the pixelsize for at least two dimensions."))
+        else
+            args = args[1]
         end
 
-        newsize = ceil.(Int, args[1])
+        newsize = ceil.(Int, args)
     elseif length(args) == 2
         args = (args..., oldsize[3])
         newsize = ceil.(Int, args)
