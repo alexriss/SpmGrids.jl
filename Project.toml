@@ -13,7 +13,6 @@ Printf = "de0858da-6303-5e67-8744-51eddeeeb8d7"
 SpmImages = "a5d333f8-9588-4c9f-ac4d-4583361e1fcb"
 SpmSpectroscopy = "9ab0b2fc-e013-4186-b0b9-58e9a8cad668"
 TOML = "fa267f1f-6049-4f14-aa54-33bafae1ed76"
-WGLMakie = "276b4fcb-3e11-5398-bf8b-a0c2d153d008"
 
 [compat]
 CairoMakie = "^0.10"
