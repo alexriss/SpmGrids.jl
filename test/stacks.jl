@@ -116,6 +116,8 @@
     @test get_channel(grid, "Excitation", 23, 15, 3)[] ≈ 0.04180599004030228
 
     images[4].center .+= 100.
+
+    load_grid(images)  # to see potential errors
     err = nothing
     try
         load_grid(images)
