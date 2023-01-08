@@ -306,6 +306,11 @@ function interactive_display(grid::SpmGrid, response_channel::String="", respons
     for (ax, xy_data) in zip((ax_line_1, ax_line_2), (data_line_1.xy[], data_line_2.xy[]))
         on(backend.events(ax.scene).mousebutton) do mb
             if mb.button == backend.Mouse.left 
+                plt, idx = backend.pick(ax.scene, backend.events(ax.scene).mouseposition[])
+                # see also here: https://discourse.julialang.org/t/makie-mouse-event/74786
+                # todo: right now, the first plot seems to always have preference.
+                # e.g. if the second plot has a different range/zoom, the selection is based on the first plot
+                isnothing(plt) && return backend.Consume(false)
                 pos = Float64(backend.mouseposition(ax.scene)[1])
                 idx = findmin(abs.(pos .- first.(xy_data)))[2]
                 if idx .>= 1 && idx <= grid.points
