@@ -302,6 +302,51 @@ end
     @test size(get_parameter(grid, "Sweep Diff before")) == Tuple(ceil.(Int, pixelsize_old * 0.5))
 
     grid = load_grid("Grid Spectroscopy006.3ds")
+    pixelsize_old = grid.pixelsize
+    points_old = grid.points
+    
     resize!(grid, (12, 12, 12))
+    @test grid.pixelsize == [12,12]
+    @test grid.points == 12
+    z = get_channel(grid, "Z")
+    @test size(z)[1:2] == (12,12)
+    @test size(z)[3] == 12
+    @test size(get_parameter(grid, "Sweep Start")) == (12, 12)
+    @test size(get_parameter(grid, "Z offset")) == (12, 12)
 
+    grid = load_grid("Grid Spectroscopy006.3ds")
+    pixelsize_old = grid.pixelsize
+    points_old = grid.points
+    resize!(grid, (12, 12))
+    @test grid.pixelsize == [12,12]
+    @test grid.points == points_old
+    z = get_channel(grid, "Z")
+    @test size(z)[1:2] == (12,12)
+    @test size(z)[3] == points_old
+    @test size(get_parameter(grid, "Sweep Start")) == (12, 12)
+    @test size(get_parameter(grid, "Z offset")) == (12, 12)
+
+    grid = load_grid("Grid Spectroscopy006.3ds")
+    pixelsize_old = grid.pixelsize
+    points_old = grid.points
+    resize!(grid, 12, 12)
+    @test grid.pixelsize == [12,12]
+    @test grid.points == points_old
+    z = get_channel(grid, "Z")
+    @test size(z)[1:2] == (12,12)
+    @test size(z)[3] == points_old
+    @test size(get_parameter(grid, "Sweep Start")) == (12, 12)
+    @test size(get_parameter(grid, "Z offset")) == (12, 12)
+
+    grid = load_grid("Grid Spectroscopy006.3ds")
+    pixelsize_old = grid.pixelsize
+    points_old = grid.points
+    resize!(grid, ratio=(0.5, 0.5))
+    @test grid.pixelsize == ceil.(Int, pixelsize_old * 0.5)
+    @test grid.points == points_old
+    z = get_channel(grid, "Z")
+    @test size(z)[1:2] == Tuple(ceil.(Int, pixelsize_old * 0.5))
+    @test size(z)[3] == points_old
+    @test size(get_parameter(grid, "Sweep Start")) == Tuple(ceil.(Int, pixelsize_old * 0.5))
+    @test size(get_parameter(grid, "Z offset")) == Tuple(ceil.(Int, pixelsize_old * 0.5))
 end
