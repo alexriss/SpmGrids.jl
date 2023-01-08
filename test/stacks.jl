@@ -115,7 +115,7 @@
     @test get_channel(grid, "Frequency Shift", 23, 25, 4)[] ≈ -26.303598403930664
     @test get_channel(grid, "Excitation", 23, 15, 3)[] ≈ 0.04180599004030228
 
-    images[4].center .+= 100.
+    images[4].center .+= 5.
 
     load_grid(images)  # to see potential errors
     err = nothing
