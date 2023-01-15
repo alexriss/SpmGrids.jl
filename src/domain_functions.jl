@@ -239,8 +239,8 @@ function deconvolve_force!(grid::SpmGrid, response_channel::String,
     nx, ny, nc = dim_ch
     if calc_xy_derivs
         # differentiate in x and y direction
-        grid_Fx = cat(diff(grid_E, dims=1), fill(NaN, 1, ny, nc), dims=1)
-        grid_Fy = cat(diff(grid_E, dims=2), fill(NaN, nx, 1, nc), dims=2)
+        grid_Fx = -cat(diff(grid_E, dims=1), fill(NaN, 1, ny, nc), dims=1)
+        grid_Fy = -cat(diff(grid_E, dims=2), fill(NaN, nx, 1, nc), dims=2)
     else
         @warn "The sweep channel is not sorted, the x and y force components will not be calculated." *
         "Are you sure this is the correct type of experiment for a force deconvolution?"
