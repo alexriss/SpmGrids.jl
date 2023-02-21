@@ -56,7 +56,7 @@ function interactive_display(grid::SpmGrid, response_channel::String="", respons
 
     if fig === nothing
         check_makie_loaded(backend, warn=false)
-        if isdefined(backend, :set_window_config!)  # WGLMakie does not have it
+        if isdefined(backend, :activate!)  # WGLMakie does not have it
             backend.activate!(title="SpmGrids")
         end
         fontsize_theme = backend.Theme(fontsize = 10)
