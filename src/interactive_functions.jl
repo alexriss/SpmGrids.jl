@@ -41,16 +41,26 @@ function interactive_display(grid::SpmGrid, response_channel::String="", respons
     bwd::Bool=false, fig::Any=nothing, backend::Module=Main, kwargs...)::Any
 
     if response_channel === ""
-        response_channel = grid.channel_names[1]
+        if length(grid.channel_names) > 0
+            response_channel = grid.channel_names[1]
+        else
+            response_channel = channel_names(grid)[1]
+        end
     end
     if response_channel2 === ""
-        response_channel2 = grid.channel_names[2]
+        if length(grid.channel_names) > 1
+            response_channel2 = grid.channel_names[2]
+        else
+            response_channel2 = channel_names(grid)[2]
+        end
     end
     if parameter === ""
         if length(grid.experiment_parameter_names) > 0
             parameter = grid.experiment_parameter_names[1]
-        else
+        elseif length(grid.fixed_parameter_names) > 0
             parameter = grid.fixed_parameter_names[1]
+        else
+            parameter = parameter_names(grid)[1]
         end
     end
 

@@ -64,7 +64,7 @@ SpmGrid(filename::String) = SpmGrid(
         String[], Dict{String,String}(), String[], String[], Dict{String,String}(),
         "", 0, Float64[],
         OrderedDict{String,Vector{Float64}}(), OrderedDict{String,Vector{Float64}}(),
-        Float64[], "", Float64[], 0., Int[],
+        Float64[], "", Float64[], 0., Int[0,0],
         missing, missing,
         DateTime(-1), DateTime(-1)
     )
@@ -133,9 +133,12 @@ end
 """
     load_grid(filename::AbstractString; header_only::Bool=false)
 
-Loads a grid from a binary file. If `header_only` is `true`, then only the header is loaded.
+Loads a grid from a binary file or a set of ASCII files in a directory. If `header_only` is `true` (only for binary files), then only the header is loaded.
 """
 function load_grid(filename::AbstractString; header_only::Bool=false)::SpmGrid
+    if isdir(filename)
+        return load_grid_ascii(filename)
+    end
 
     ext = rsplit(filename, "."; limit=2)[end]
     if ext != "3ds"
@@ -241,6 +244,114 @@ function read_binary_data!(grid::SpmGrid, f::IOStream, num_parameters::Int)::Not
     grid.data = Float64.(permutedims(data, (2,3,1)))
 
     return nothing
+end
+
+
+"""
+    load_grid_ascii(dir_data::AbstractString)
+
+Loads a grid from individual ASCII files in the directory `dir_data`.
+"""
+function load_grid_ascii(dir_data::AbstractString)
+    fnames = readdir(dir_data, join=true, sort=true)
+    filter!(endswith(".dat"), fnames)
+
+    grid = SpmGrids.SpmGrid(dir_data)
+    grid.generated_parameters["x"] = fill(NaN, length(fnames))
+    grid.generated_parameters["y"] = fill(NaN, length(fnames))
+    grid.generated_parameters["z"] = fill(NaN, length(fnames))
+    grid.generated_parameters["bias"] = fill(NaN, length(fnames))
+    grid.parameter_units["x"] = "m"
+    grid.parameter_units["y"] = "m"
+    grid.parameter_units["z"] = "m"
+    grid.parameter_units["bias"] = "V"
+    npoints = 0
+    xydiff = (0.0, 0.0)
+    xlines = Int[]
+    xystart = (0.0, 0.0)
+    xyend = (0.0, 0.0)
+    sweep = ""
+    for (i, fname) in enumerate(fnames)
+        spec = load_spectrum(fname)
+        for (ch, ch_unit) in zip(spec.channel_names, spec.channel_units)
+            if !haskey(grid.generated_channels, ch)
+                npoints = length(spec.data[!, ch])
+                grid.generated_channels[ch] = fill(NaN, (length(fnames), npoints))
+                grid.channel_units[ch] = ch_unit
+            end
+            grid.generated_channels[ch][i, :] = spec.data[!, ch]
+        end
+        x, y, z = spec.position
+        grid.generated_parameters["x"][i] = x
+        grid.generated_parameters["y"][i] = y
+        grid.generated_parameters["z"][i] = z
+        grid.generated_parameters["bias"][i] = spec.bias
+
+        if i == 1
+            grid.start_time = spec.start_time
+            xystart = (x, y)
+            sweep = spec.channel_names[1]   # this might not always be true, though
+            continue
+        end
+
+        lastx = grid.generated_parameters["x"][i-1]
+        lasty = grid.generated_parameters["y"][i-1]
+        if i == 2
+            xydiff = (x, y) .- (lastx, lasty)
+        end
+        curr_xydiff = (x, y) .- (lastx, lasty)
+        if !isapprox(curr_xydiff[1], xydiff[1], atol=1e-11) || !isapprox(curr_xydiff[2], xydiff[2], atol=1e-11)
+            push!(xlines, i - 1)
+        end
+
+        if i == length(fnames)
+            grid.end_time = spec.start_time  # good enough for now
+            xyend = (x, y)
+        end
+    end
+
+    xdim = xlines[1]
+    for i in xlines
+        if i % xdim !=0
+            @warn("X dimension does not seem constant.")
+            break
+        end  
+    end
+
+    ydim = ceil(Int, length(fnames) / xdim)
+    diffdim = 0
+    if xdim * ydim != length(fnames)
+        # fill last line with NaNs
+        for ch in keys(grid.generated_channels)
+            diffdim = xdim * ydim - length(fnames)
+            grid.generated_channels[ch] = vcat(grid.generated_channels[ch], fill(NaN, diffdim, npoints))
+            grid.generated_parameters["x"] = vcat(grid.generated_parameters["x"], fill(NaN, diffdim))
+            grid.generated_parameters["y"] = vcat(grid.generated_parameters["y"], fill(NaN, diffdim))
+            grid.generated_parameters["z"] = vcat(grid.generated_parameters["z"], fill(NaN, diffdim))
+            grid.generated_parameters["bias"] = vcat(grid.generated_parameters["bias"], fill(NaN, diffdim))
+        end
+    end
+
+    # resize all to fit dimensions
+    for ch in keys(grid.generated_channels)
+        grid.generated_channels[ch] = reshape(grid.generated_channels[ch], (xdim, ydim, npoints))
+    end
+    grid.generated_parameters["x"] = reshape(grid.generated_parameters["x"], (xdim, ydim))
+    grid.generated_parameters["y"] = reshape(grid.generated_parameters["y"], (xdim, ydim))
+    grid.generated_parameters["z"] = reshape(grid.generated_parameters["z"], (xdim, ydim))
+    grid.generated_parameters["bias"] = reshape(grid.generated_parameters["bias"], (xdim, ydim))
+
+    xyend = xyend .+ xydiff .* diffdim
+
+    grid.pixelsize = [xdim, ydim]
+    grid.points = npoints
+    grid.angle = tand(xydiff[2]/xydiff[1])  # todo: check direction
+    grid.center = collect((xystart .+ xyend) ./ 2)
+    grid.sweep_signal = sweep
+    grid.size = collect(abs.(xyend .- xystart))
+    grid.size_unit = "m"
+
+    return grid
 end
 
 
